@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { SectionTitleText, LabelText, BodyLgText } from '@/components/ui/Typogra
 import { Colors } from '@/constants/theme';
 import { useGroupStore } from '@/store/groupStore';
 import { useTontineStore } from '@/store/tontineStore';
+import { formatLongDate } from '@/utils/format';
 
 export function AddContributionScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
@@ -32,7 +33,7 @@ export function AddContributionScreen() {
   }, [groupId, groupMembers.length, fetchMembers]);
 
   const selectedMember = groupMembers.find((m) => m.id === memberId);
-  const todayLabel = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  const todayLabel = formatLongDate(new Date());
 
   const onSave = async () => {
     if (!memberId || !summary?.cycle) return;
@@ -62,6 +63,7 @@ export function AddContributionScreen() {
         <View style={{ width: 50 }} />
       </View>
 
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
       <ScrollView contentContainerClassName="gap-4 px-page-margin pb-6" keyboardShouldPersistTaps="handled">
         <Card className="gap-0 p-0">
           <Pressable onPress={() => setPickerOpen((o) => !o)} className="flex-row items-center gap-3 p-gutter-card">
@@ -136,6 +138,7 @@ export function AddContributionScreen() {
       <View className="border-t border-border px-page-margin pb-4 pt-4">
         <PrimaryButton label="Enregistrer" loading={saving} disabled={!memberId} onPress={onSave} />
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

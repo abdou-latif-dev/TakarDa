@@ -1,4 +1,5 @@
 import { activityEvents, CURRENT_USER_ID, delay, genId, groups, memberships, tontineCycles } from './db';
+import { formatMonthYear } from '@/utils/format';
 import type { Group, GroupKind, Membership } from '@/types/entities';
 
 export const groupService = {
@@ -55,7 +56,7 @@ export const groupService = {
       tontineCycles.push({
         id: genId('c'),
         groupId: group.id,
-        label: `Cycle de ${dueDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`,
+        label: `Cycle de ${formatMonthYear(dueDate)}`,
         amountExpectedPerMember: 10000,
         dueDate: dueDate.toISOString(),
         createdAt: group.createdAt,

@@ -12,7 +12,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { LoadingState } from '@/components/ui/States';
 import { DisplayText, HeadlineText, LabelText, BodyMdText } from '@/components/ui/Typography';
 import { Colors } from '@/constants/theme';
-import { formatFcfa } from '@/utils/format';
+import { formatFcfa, formatLongDate } from '@/utils/format';
 import { useGroupStore } from '@/store/groupStore';
 import { useTontineStore } from '@/store/tontineStore';
 import type { ContributionStatus } from '@/types/entities';
@@ -47,7 +47,7 @@ export function TontineDashboardScreen() {
 
   const paidRatio = summary.members.length > 0 ? summary.paidCount / summary.members.length : 0;
   const lateCount = Object.values(summary.contributionsByMember).filter((c) => c?.status === 'late').length;
-  const dueDate = summary.cycle ? new Date(summary.cycle.dueDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : '—';
+  const dueDate = summary.cycle ? formatLongDate(new Date(summary.cycle.dueDate)) : '—';
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>

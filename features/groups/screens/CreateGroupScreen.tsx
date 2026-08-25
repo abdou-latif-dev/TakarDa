@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -56,6 +56,7 @@ export function CreateGroupScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <AppHeader title="Créer un groupe" />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-6 pt-2" keyboardShouldPersistTaps="handled">
         <View>
           <SectionTitleText>Nouveau Groupe</SectionTitleText>
@@ -125,6 +126,7 @@ export function CreateGroupScreen() {
       <View className="gap-3 border-t border-border bg-white px-page-margin pb-4 pt-4">
         <PrimaryButton label="Créer le groupe" icon="arrow-forward" loading={submitting} onPress={onSubmit} />
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

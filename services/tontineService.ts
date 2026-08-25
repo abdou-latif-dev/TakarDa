@@ -1,4 +1,5 @@
 import { activityEvents, contributions, delay, genId, memberships, tontineCycles } from './db';
+import { formatFcfa } from '@/utils/format';
 import type { Contribution, ContributionStatus, Membership, TontineCycle } from '@/types/entities';
 
 export interface TontineSummary {
@@ -69,7 +70,7 @@ export const tontineService = {
       id: genId('a'),
       type: 'contribution_added',
       title: 'Cotisation enregistrée',
-      description: `${member?.displayName ?? 'Un membre'} a payé ${input.amount.toLocaleString('fr-FR')} FCFA.`,
+      description: `${member?.displayName ?? 'Un membre'} a payé ${formatFcfa(input.amount)}.`,
       groupId: input.groupId,
       userName: member?.displayName,
       amount: input.amount,

@@ -1,10 +1,40 @@
-export function formatFcfa(amount: number): string {
-  return `${amount.toLocaleString('fr-FR')} FCFA`;
+// Hermes (React Native's JS engine, as shipped by Expo) doesn't reliably
+// implement the Intl.* APIs — Intl.RelativeTimeFormat is outright missing
+// (throws "Cannot read property 'prototype' of undefined"), and
+// Intl.DateTimeFormat / Intl.NumberFormat support is inconsistent across
+// builds. Every date/number label in this file is formatted by hand so the
+// app never depends on Intl being present.
+
+const MONTHS_LONG = [
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+];
+const MONTHS_SHORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+
+export function formatThousands(n: number): string {
+  const sign = n < 0 ? '-' : '';
+  return sign + Math.round(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
-// Hermes (React Native's JS engine) doesn't reliably ship Intl.RelativeTimeFormat
-// in Expo's default build — calling it throws "Cannot read property 'prototype'
-// of undefined" at runtime. Format French relative-time strings by hand instead.
+export function formatFcfa(amount: number): string {
+  return `${formatThousands(amount)} FCFA`;
+}
+
+/** "20 août" */
+export function formatShortDate(date: Date): string {
+  return `${date.getDate()} ${MONTHS_SHORT[date.getMonth()]}`;
+}
+
+/** "20 août" with full month name */
+export function formatLongDate(date: Date): string {
+  return `${date.getDate()} ${MONTHS_LONG[date.getMonth()]}`;
+}
+
+/** "août 2026" */
+export function formatMonthYear(date: Date): string {
+  return `${MONTHS_LONG[date.getMonth()]} ${date.getFullYear()}`;
+}
+
 function pluralize(count: number, singular: string, plural = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : plural}`;
 }
@@ -24,7 +54,7 @@ export function formatRelativeTime(iso: string): string {
   if (diffHours < 24) return isPast ? `il y a ${pluralize(diffHours, 'heure')}` : `dans ${pluralize(diffHours, 'heure')}`;
   if (diffDays <= 6) return isPast ? `il y a ${pluralize(diffDays, 'jour')}` : `dans ${pluralize(diffDays, 'jour')}`;
 
-  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  return formatShortDate(date);
 }
 
 export function formatDayGroup(iso: string): string {
@@ -38,7 +68,7 @@ export function formatDayGroup(iso: string): string {
 
   if (isSameDay(date, today)) return "Aujourd'hui";
   if (isSameDay(date, yesterday)) return 'Hier';
-  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  return formatLongDate(date);
 }
 
 export function initials(name: string): string {

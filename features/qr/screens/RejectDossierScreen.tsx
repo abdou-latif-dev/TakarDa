@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -40,6 +40,7 @@ export function RejectDossierScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <AppHeader title="FormEase" showBack />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-6" keyboardShouldPersistTaps="handled">
         <View className="items-center gap-2">
           <View className="h-16 w-16 items-center justify-center rounded-full bg-error-container">
@@ -94,6 +95,7 @@ export function RejectDossierScreen() {
         />
         <SecondaryButton label="Annuler" onPress={() => router.back()} />
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

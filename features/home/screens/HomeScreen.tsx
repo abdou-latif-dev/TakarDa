@@ -32,7 +32,7 @@ export function HomeScreen() {
   const goToTontine = () => {
     const tontine = groups.find((g) => g.kind === 'tontine');
     if (tontine) router.push(`/group/${tontine.id}/tontine`);
-    else router.push('/(tabs)/groups');
+    else router.push('/group/create?kind=tontine');
   };
 
   return (

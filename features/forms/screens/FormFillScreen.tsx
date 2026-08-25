@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -86,6 +86,7 @@ export function FormFillScreen() {
         <ProgressBar progress={progress} />
       </View>
 
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
       <ScrollView contentContainerClassName="gap-5 px-page-margin py-6" keyboardShouldPersistTaps="handled">
         <View>
           <DisplayText className="text-2xl">{activeForm.title}</DisplayText>
@@ -117,6 +118,7 @@ export function FormFillScreen() {
           fullWidth={step === 0}
         />
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

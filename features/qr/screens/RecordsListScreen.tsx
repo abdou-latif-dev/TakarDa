@@ -13,6 +13,7 @@ import { BodyLgText, LabelText } from '@/components/ui/Typography';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
 import { useSubmissionStore } from '@/store/submissionStore';
+import { formatShortDate } from '@/utils/format';
 import type { SubmissionStatus } from '@/types/entities';
 
 const FILTERS: { label: string; value: SubmissionStatus | 'all' }[] = [
@@ -98,7 +99,7 @@ export function RecordsListScreen() {
                         {submission.clientName}
                       </BodyLgText>
                       <LabelText numberOfLines={1}>
-                        {new Date(submission.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} · {submission.formTitle}
+                        {formatShortDate(new Date(submission.createdAt))} · {submission.formTitle}
                       </LabelText>
                     </View>
                     <StatusBadge status={STATUS_MAP[submission.status]} />

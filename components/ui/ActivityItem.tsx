@@ -3,7 +3,7 @@ import type { ComponentProps } from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BodyLgText, BodyMdText, LabelText } from './Typography';
 import { Colors } from '@/constants/theme';
-import { formatRelativeTime } from '@/utils/format';
+import { formatRelativeTime, formatThousands } from '@/utils/format';
 import type { ActivityEvent, ActivityType } from '@/types/entities';
 import { cn } from '@/utils/cn';
 
@@ -50,7 +50,7 @@ export function ActivityItem({ event, isLast }: { event: ActivityEvent; isLast?:
         </View>
         {typeof event.amount === 'number' && (
           <LabelText className="font-inter-semibold text-primary-dark">
-            +{event.amount.toLocaleString('fr-FR')}
+            +{formatThousands(event.amount)}
           </LabelText>
         )}
       </View>
