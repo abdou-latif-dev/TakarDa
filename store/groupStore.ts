@@ -15,6 +15,7 @@ interface GroupState {
   fetchMembers: (groupId: string) => Promise<void>;
   createGroup: (input: { name: string; description?: string; kind?: GroupKind }) => Promise<Group>;
   inviteMember: (groupId: string, displayName: string) => Promise<void>;
+  joinGroup: (groupId: string) => Promise<void>;
   getGroup: (groupId: string) => Group | undefined;
 }
 
@@ -60,6 +61,11 @@ export const useGroupStore = create<GroupState>((set, get) => ({
       members: { ...s.members, [groupId]: [...(s.members[groupId] ?? []), membership] },
       groups: s.groups.map((g) => (g.id === groupId ? { ...g, memberCount: g.memberCount + 1 } : g)),
     }));
+  },
+
+  joinGroup: async (groupId) => {
+    await groupService.joinGroup(groupId);
+    await get().fetchGroups();
   },
 
   getGroup: (groupId) => get().groups.find((g) => g.id === groupId),

@@ -7,14 +7,15 @@ import { Avatar } from '@/components/ui/Avatar';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton, SecondaryButton, DestructiveButton } from '@/components/ui/Button';
-import { LoadingState, ErrorState } from '@/components/ui/States';
-import { BodyLgText, ButtonLabelText, LabelText } from '@/components/ui/Typography';
+import { LoadingState, ErrorState, EmptyState } from '@/components/ui/States';
+import { BodyLgText, BodyMdText, ButtonLabelText, LabelText } from '@/components/ui/Typography';
 import { cn } from '@/utils/cn';
+import { formatRelativeTime } from '@/utils/format';
 import { useSubmissionStore } from '@/store/submissionStore';
 import { useFormStore } from '@/store/formStore';
 import type { FieldType } from '@/types/entities';
 
-const TABS = ['Identité', 'Contact', 'Informations', 'Documents'] as const;
+const TABS = ['Identité', 'Contact', 'Informations', 'Documents', 'Historique'] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_FOR_TYPE: Record<FieldType, Tab> = {
@@ -99,7 +100,29 @@ export function DossierClientScreen() {
       </View>
 
       <ScrollView contentContainerClassName="gap-4 px-page-margin py-4" showsVerticalScrollIndicator={false}>
-        {tabRows.length === 0 ? (
+        {tab === 'Historique' ? (
+          activeSubmission.history.length === 0 ? (
+            <EmptyState icon="history" title="Aucun historique" description="Aucune action n'a encore été enregistrée sur ce dossier." compact />
+          ) : (
+            <Card className="gap-0 p-0">
+              {[...activeSubmission.history]
+                .sort((a, b) => (a.at < b.at ? 1 : -1))
+                .map((entry, i, arr) => (
+                  <View key={entry.id}>
+                    {i > 0 && <View className="h-px bg-border" />}
+                    <View className="flex-row items-start justify-between gap-3 p-gutter-card">
+                      <View className="flex-1">
+                        <BodyLgText className="font-inter-semibold">{entry.actorName}</BodyLgText>
+                        {entry.note && <BodyMdText className="mt-0.5">{entry.note}</BodyMdText>}
+                        <LabelText className="mt-1">{formatRelativeTime(entry.at)}</LabelText>
+                      </View>
+                      <StatusBadge status={entry.status === 'correction_requested' ? 'pending' : entry.status} />
+                    </View>
+                  </View>
+                ))}
+            </Card>
+          )
+        ) : tabRows.length === 0 ? (
           <ErrorState title="Aucune donnée" description="Rien à afficher dans cette section." />
         ) : (
           <Card className="gap-0 p-0">

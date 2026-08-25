@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { LabelText, SectionTitleText, BodyMdText } from '@/components/ui/Typography';
 import { Colors } from '@/constants/theme';
 import { useGroupStore } from '@/store/groupStore';
+import { buildJoinLink } from '@/utils/deepLink';
 
 interface OptionProps {
   icon: keyof typeof MaterialIcons.glyphMap;
@@ -46,7 +47,7 @@ export function InviteMembersScreen() {
 
   const shareLink = async () => {
     await Share.share({
-      message: `Rejoignez "${group?.name ?? 'mon groupe'}" sur FormEase : https://formease.app/invite/${groupId}`,
+      message: `Rejoignez "${group?.name ?? 'mon groupe'}" sur FormEase : ${buildJoinLink(groupId)}`,
     });
   };
 

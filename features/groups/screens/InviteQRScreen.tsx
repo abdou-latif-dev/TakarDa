@@ -5,11 +5,12 @@ import { AppHeader } from '@/components/ui/AppHeader';
 import { QRCard } from '@/components/ui/QRCard';
 import { SecondaryButton } from '@/components/ui/Button';
 import { useGroupStore } from '@/store/groupStore';
+import { buildJoinLink } from '@/utils/deepLink';
 
 export function InviteQRScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const group = useGroupStore((s) => s.groups.find((g) => g.id === groupId));
-  const token = `https://formease.app/invite/${groupId}`;
+  const token = buildJoinLink(groupId);
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>

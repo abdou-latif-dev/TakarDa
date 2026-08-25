@@ -1,4 +1,4 @@
-import { activityEvents, CURRENT_USER_ID, delay, genId, groups, memberships, tontineCycles } from './db';
+import { activityEvents, CURRENT_USER_ID, delay, genId, groups, memberships, tontineCycles, users } from './db';
 import { formatMonthYear } from '@/utils/format';
 import type { Group, GroupKind, Membership } from '@/types/entities';
 
@@ -88,6 +88,45 @@ export const groupService = {
       groupId,
       userName: displayName,
       at: new Date().toISOString(),
+    });
+    return membership;
+  },
+
+  /** Someone opening an invite link/QR taps through to become a real member of the group. */
+  async joinGroup(groupId: string): Promise<Membership> {
+    await delay();
+    const group = groups.find((g) => g.id === groupId);
+    if (!group) throw new Error('Ce groupe est introuvable ou le lien a expiré.');
+
+    const existing = memberships.find((m) => m.groupId === groupId && m.userId === CURRENT_USER_ID);
+    if (existing) {
+      if (existing.status !== 'active') {
+        existing.status = 'active';
+        existing.joinedAt = new Date().toISOString();
+      }
+      return existing;
+    }
+
+    const me = users.find((u) => u.id === CURRENT_USER_ID);
+    const membership: Membership = {
+      id: genId('m'),
+      groupId,
+      userId: CURRENT_USER_ID,
+      role: 'member',
+      displayName: me?.name?.trim() || 'Vous',
+      joinedAt: new Date().toISOString(),
+      status: 'active',
+    };
+    memberships.push(membership);
+    group.memberCount += 1;
+    activityEvents.unshift({
+      id: genId('a'),
+      type: 'member_joined',
+      title: 'Nouveau membre',
+      description: `${membership.displayName} a rejoint ${group.name}.`,
+      groupId,
+      userName: membership.displayName,
+      at: membership.joinedAt,
     });
     return membership;
   },
