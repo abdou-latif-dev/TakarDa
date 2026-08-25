@@ -1,4 +1,5 @@
-import { Pressable, View, type ComponentProps } from 'react-native';
+import { Pressable, View } from 'react-native';
+import type { ComponentProps } from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BodyLgText, LabelText } from './Typography';
 import { Colors } from '@/constants/theme';

@@ -16,11 +16,7 @@ interface SignUpForm {
 export function SignUpScreen() {
   const signUp = useAuthStore((s) => s.signUp);
   const status = useAuthStore((s) => s.status);
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<SignUpForm>({ defaultValues: { fullName: '', identifier: '', password: '' } });
+  const { control, handleSubmit } = useForm<SignUpForm>({ defaultValues: { fullName: '', identifier: '', password: '' } });
 
   const onSubmit = async (values: SignUpForm) => {
     try {
@@ -44,45 +40,39 @@ export function SignUpScreen() {
           <Controller
             control={control}
             name="fullName"
-            rules={{ required: 'Champ requis' }}
             render={({ field }) => (
               <TextField
-                label="Nom complet"
+                label="Nom complet (optionnel)"
                 icon="person-outline"
                 placeholder="Ex: Jean Dupont"
                 value={field.value}
                 onChangeText={field.onChange}
-                error={errors.fullName?.message}
               />
             )}
           />
           <Controller
             control={control}
             name="identifier"
-            rules={{ required: 'Champ requis' }}
             render={({ field }) => (
               <TextField
-                label="Téléphone ou email"
+                label="Téléphone ou email (optionnel)"
                 icon="mail-outline"
                 autoCapitalize="none"
                 value={field.value}
                 onChangeText={field.onChange}
-                error={errors.identifier?.message}
               />
             )}
           />
           <Controller
             control={control}
             name="password"
-            rules={{ required: 'Champ requis', minLength: { value: 6, message: 'Au moins 6 caractères' } }}
             render={({ field }) => (
               <TextField
-                label="Mot de passe"
+                label="Mot de passe (optionnel)"
                 icon="lock-outline"
                 secureToggle
                 value={field.value}
                 onChangeText={field.onChange}
-                error={errors.password?.message}
               />
             )}
           />

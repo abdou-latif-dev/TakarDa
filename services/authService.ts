@@ -32,24 +32,31 @@ export const authService = {
     return findCurrentUser();
   },
 
+  // No real backend to authenticate against yet, so login/sign-up never
+  // reject on empty input — tapping the button is enough to get in. Any
+  // identifier typed in is kept as a first personalization touch; the user
+  // can always refine their name/email later from "Mon compte".
   async login(credentials: AuthCredentials): Promise<User> {
     await delay();
-    if (!credentials.identifier || !credentials.password) {
-      throw new Error('Veuillez renseigner vos identifiants.');
-    }
     const user = await findCurrentUser();
     await storage.set(SESSION_KEY, { userId: user.id });
+    if (credentials.identifier?.trim() && !user.email && !user.phone) {
+      const looksLikeEmail = credentials.identifier.includes('@');
+      Object.assign(user, looksLikeEmail ? { email: credentials.identifier.trim() } : { phone: credentials.identifier.trim() });
+    }
     return user;
   },
 
   async signUp(payload: SignUpPayload): Promise<User> {
     await delay();
-    if (!payload.fullName || !payload.identifier || !payload.password) {
-      throw new Error('Veuillez remplir tous les champs.');
-    }
     const user = await findCurrentUser();
     await storage.set(SESSION_KEY, { userId: user.id });
-    return { ...user, name: payload.fullName };
+    if (payload.fullName?.trim()) user.name = payload.fullName.trim();
+    if (payload.identifier?.trim() && !user.email && !user.phone) {
+      const looksLikeEmail = payload.identifier.includes('@');
+      Object.assign(user, looksLikeEmail ? { email: payload.identifier.trim() } : { phone: payload.identifier.trim() });
+    }
+    return user;
   },
 
   async logout(): Promise<void> {

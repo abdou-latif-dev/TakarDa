@@ -17,11 +17,7 @@ interface LoginForm {
 export function LoginScreen() {
   const login = useAuthStore((s) => s.login);
   const status = useAuthStore((s) => s.status);
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginForm>({ defaultValues: { identifier: '', password: '' } });
+  const { control, handleSubmit } = useForm<LoginForm>({ defaultValues: { identifier: '', password: '' } });
 
   const onSubmit = async (values: LoginForm) => {
     try {
@@ -47,29 +43,25 @@ export function LoginScreen() {
           <Controller
             control={control}
             name="identifier"
-            rules={{ required: 'Champ requis' }}
             render={({ field }) => (
               <TextField
-                placeholder="Email ou téléphone"
+                placeholder="Email ou téléphone (optionnel)"
                 autoCapitalize="none"
                 keyboardType="email-address"
                 value={field.value}
                 onChangeText={field.onChange}
-                error={errors.identifier?.message}
               />
             )}
           />
           <Controller
             control={control}
             name="password"
-            rules={{ required: 'Champ requis' }}
             render={({ field }) => (
               <TextField
-                placeholder="Mot de passe"
+                placeholder="Mot de passe (optionnel)"
                 secureToggle
                 value={field.value}
                 onChangeText={field.onChange}
-                error={errors.password?.message}
               />
             )}
           />

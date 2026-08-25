@@ -1,4 +1,5 @@
-import { View, type ComponentProps } from 'react-native';
+import { View } from 'react-native';
+import type { ComponentProps } from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Card } from './Card';
 import { HeadlineText, LabelText } from './Typography';

@@ -76,7 +76,15 @@ export function RecordsListScreen() {
             </ScrollView>
 
             {filtered.length === 0 ? (
-              <EmptyState icon="search-off" title="Aucun dossier" description="Aucun résultat pour cette recherche." />
+              submissions.length === 0 ? (
+                <EmptyState
+                  icon="inbox"
+                  title="Aucun dossier"
+                  description="Les dossiers apparaîtront ici dès qu'un client aura soumis un formulaire et que vous aurez scanné son QR code."
+                />
+              ) : (
+                <EmptyState icon="search-off" title="Aucun résultat" description="Aucun dossier ne correspond à cette recherche." />
+              )
             ) : (
               <View className="gap-3">
                 {filtered.map((submission) => (
