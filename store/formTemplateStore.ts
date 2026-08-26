@@ -7,7 +7,7 @@ interface FormTemplateState {
   templates: FormTemplate[];
   status: AsyncStatus;
   fetchTemplates: () => Promise<void>;
-  useTemplate: (templateId: string) => Promise<FormDefinition>;
+  applyTemplate: (templateId: string) => Promise<FormDefinition>;
 }
 
 export const useFormTemplateStore = create<FormTemplateState>((set) => ({
@@ -24,7 +24,7 @@ export const useFormTemplateStore = create<FormTemplateState>((set) => ({
     }
   },
 
-  useTemplate: async (templateId) => {
+  applyTemplate: async (templateId) => {
     return formTemplateService.useTemplate(templateId);
   },
 }));

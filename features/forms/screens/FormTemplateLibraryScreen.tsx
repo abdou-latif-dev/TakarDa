@@ -22,7 +22,7 @@ const CATEGORIES: { value: FormTemplate['category'] | 'all'; label: string }[] =
 ];
 
 export function FormTemplateLibraryScreen() {
-  const { templates, status, fetchTemplates, useTemplate } = useFormTemplateStore();
+  const { templates, status, fetchTemplates, applyTemplate } = useFormTemplateStore();
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]['value']>('all');
   const [applyingId, setApplyingId] = useState<string | null>(null);
 
@@ -38,7 +38,7 @@ export function FormTemplateLibraryScreen() {
   const onUse = async (templateId: string) => {
     setApplyingId(templateId);
     try {
-      const form = await useTemplate(templateId);
+      const form = await applyTemplate(templateId);
       router.replace(`/form/${form.id}/edit`);
     } finally {
       setApplyingId(null);
