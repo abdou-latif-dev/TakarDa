@@ -20,14 +20,6 @@ export function ScanScreen() {
     if (locked) return;
     setLocked(true);
 
-    const joinMatch = result.data.match(/formease:\/\/join\/([\w-]+)/);
-    if (joinMatch) {
-      // `/join/[groupId]` is a freshly added route — typed-routes only picks
-      // it up after a dev-server typegen pass, so cast this one call.
-      router.replace(`/join/${joinMatch[1]}` as never);
-      return;
-    }
-
     const outcome = await scan(result.data);
 
     if (outcome.kind === 'found') {

@@ -1,6 +1,6 @@
 import { activityEvents, CURRENT_USER_ID, delay, genId, groups, memberships, tontineCycles, users } from './db';
 import { formatMonthYear } from '@/utils/format';
-import type { Group, GroupKind, Membership, TontineFrequency, TontineOrderMethod } from '@/types/entities';
+import type { Group, Membership, TontineFrequency, TontineOrderMethod } from '@/types/entities';
 
 /** Re-derives every active member's rotation position from the tontine's chosen ordering method. */
 function recomputePositions(groupId: string) {
@@ -48,40 +48,6 @@ export const groupService = {
     return memberships
       .filter((m) => m.groupId === groupId)
       .sort((a, b) => (a.position ?? 999) - (b.position ?? 999));
-  },
-
-  async createGroup(input: { name: string; description?: string; kind?: GroupKind }): Promise<Group> {
-    await delay();
-    const group: Group = {
-      id: genId('g'),
-      name: input.name,
-      description: input.description,
-      kind: input.kind ?? 'general',
-      ownerId: CURRENT_USER_ID,
-      memberCount: 1,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    groups.unshift(group);
-    memberships.push({
-      id: genId('m'),
-      groupId: group.id,
-      userId: CURRENT_USER_ID,
-      role: 'admin',
-      displayName: 'Vous',
-      joinedAt: group.createdAt,
-      status: 'active',
-      position: 1,
-    });
-    activityEvents.unshift({
-      id: genId('a'),
-      type: 'group_created',
-      title: 'Groupe créé',
-      description: `${group.name} a été créé.`,
-      groupId: group.id,
-      at: group.createdAt,
-    });
-    return group;
   },
 
   /** Dedicated tontine creation: captures cotisation, fréquence, date de début et méthode d'ordre. */
@@ -195,53 +161,6 @@ export const groupService = {
       description: `${displayName} a été ajouté·e à ${group?.name ?? 'la tontine'}.`,
       groupId,
       userName: displayName,
-      at: membership.joinedAt,
-    });
-    return membership;
-  },
-
-  /** @deprecated kept for the group-invite screens still in use — prefer addFormeaseMember/addGuestMember. */
-  async inviteMember(groupId: string, displayName: string): Promise<Membership> {
-    return groupService.addGuestMember(groupId, { firstName: displayName, lastName: '' });
-  },
-
-  /** Someone opening an invite link/QR taps through to become a real member of the group. */
-  async joinGroup(groupId: string): Promise<Membership> {
-    await delay();
-    const group = groups.find((g) => g.id === groupId);
-    if (!group) throw new Error('Ce groupe est introuvable ou le lien a expiré.');
-
-    const existing = memberships.find((m) => m.groupId === groupId && m.userId === CURRENT_USER_ID);
-    if (existing) {
-      if (existing.status !== 'active') {
-        existing.status = 'active';
-        existing.joinedAt = new Date().toISOString();
-        recomputePositions(groupId);
-      }
-      return existing;
-    }
-
-    const me = users.find((u) => u.id === CURRENT_USER_ID);
-    const membership: Membership = {
-      id: genId('m'),
-      groupId,
-      userId: CURRENT_USER_ID,
-      role: 'member',
-      displayName: me?.name?.trim() || 'Vous',
-      joinedAt: new Date().toISOString(),
-      status: 'active',
-      accountType: 'formease_user',
-    };
-    memberships.push(membership);
-    group.memberCount += 1;
-    recomputePositions(groupId);
-    activityEvents.unshift({
-      id: genId('a'),
-      type: 'member_joined',
-      title: 'Nouveau membre',
-      description: `${membership.displayName} a rejoint ${group.name}.`,
-      groupId,
-      userName: membership.displayName,
       at: membership.joinedAt,
     });
     return membership;

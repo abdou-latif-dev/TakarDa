@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { groupService, type CreateTontineInput } from '@/services/groupService';
 import type { AsyncStatus } from './asyncStatus';
-import type { Group, GroupKind, Membership } from '@/types/entities';
+import type { Group, Membership } from '@/types/entities';
 
 interface GroupState {
   groups: Group[];
@@ -12,13 +12,10 @@ interface GroupState {
 
   fetchGroups: () => Promise<void>;
   fetchMembers: (groupId: string) => Promise<void>;
-  createGroup: (input: { name: string; description?: string; kind?: GroupKind }) => Promise<Group>;
   createTontine: (input: CreateTontineInput) => Promise<Group>;
-  inviteMember: (groupId: string, displayName: string) => Promise<void>;
   addFormeaseMember: (groupId: string, formeaseId: string) => Promise<void>;
   addGuestMember: (groupId: string, input: { firstName: string; lastName: string; phone?: string }) => Promise<void>;
   setMemberOrder: (groupId: string, orderedMembershipIds: string[]) => Promise<void>;
-  joinGroup: (groupId: string) => Promise<void>;
   getGroup: (groupId: string) => Group | undefined;
 }
 
@@ -52,24 +49,10 @@ export const useGroupStore = create<GroupState>((set, get) => ({
     }
   },
 
-  createGroup: async (input) => {
-    const group = await groupService.createGroup(input);
-    set((s) => ({ groups: [group, ...s.groups] }));
-    return group;
-  },
-
   createTontine: async (input) => {
     const group = await groupService.createTontine(input);
     set((s) => ({ groups: [group, ...s.groups] }));
     return group;
-  },
-
-  inviteMember: async (groupId, displayName) => {
-    const membership = await groupService.inviteMember(groupId, displayName);
-    set((s) => ({
-      members: { ...s.members, [groupId]: [...(s.members[groupId] ?? []), membership] },
-      groups: s.groups.map((g) => (g.id === groupId ? { ...g, memberCount: g.memberCount + 1 } : g)),
-    }));
   },
 
   addFormeaseMember: async (groupId, formeaseId) => {
@@ -85,11 +68,6 @@ export const useGroupStore = create<GroupState>((set, get) => ({
   setMemberOrder: async (groupId, orderedMembershipIds) => {
     await groupService.setMemberOrder(groupId, orderedMembershipIds);
     await get().fetchMembers(groupId);
-  },
-
-  joinGroup: async (groupId) => {
-    await groupService.joinGroup(groupId);
-    await get().fetchGroups();
   },
 
   getGroup: (groupId) => get().groups.find((g) => g.id === groupId),
