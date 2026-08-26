@@ -1,4 +1,4 @@
-import { activityEvents, contributions, delay, genId, memberships, tontineCycles } from './db';
+import { activityEvents, contributions, delay, genId, groups, memberships, tontineCycles } from './db';
 import { formatFcfa } from '@/utils/format';
 import type { Contribution, ContributionStatus, Membership, TontineCycle } from '@/types/entities';
 
@@ -9,19 +9,34 @@ export interface TontineSummary {
   totalCollected: number;
   totalExpected: number;
   paidCount: number;
+  currentRound: number;
+  totalRounds: number;
+  nextBeneficiary: Membership | null;
+  progress: number; // 0..1
+}
+
+function generateReference(): string {
+  return `FE-${Math.floor(10000 + Math.random() * 89999)}`;
 }
 
 export const tontineService = {
   async getSummary(groupId: string): Promise<TontineSummary> {
     await delay();
+    const group = groups.find((g) => g.id === groupId);
     const cycle = tontineCycles.find((c) => c.groupId === groupId) ?? null;
-    const members = memberships.filter((m) => m.groupId === groupId && m.status !== 'invited');
+    const members = memberships
+      .filter((m) => m.groupId === groupId && m.status !== 'invited')
+      .sort((a, b) => (a.position ?? 999) - (b.position ?? 999));
     const groupContributions = contributions.filter((c) => c.groupId === groupId && c.cycleId === cycle?.id);
     const contributionsByMember: Record<string, Contribution | undefined> = {};
     for (const member of members) {
       contributionsByMember[member.id] = groupContributions.find((c) => c.memberId === member.id);
     }
     const paid = groupContributions.filter((c) => c.status === 'paid');
+    const currentRound = group?.currentRound ?? 1;
+    const totalRounds = members.length;
+    const nextBeneficiary = members.find((m) => m.position === currentRound) ?? null;
+
     return {
       cycle,
       members,
@@ -29,6 +44,10 @@ export const tontineService = {
       totalCollected: paid.reduce((sum, c) => sum + c.amount, 0),
       totalExpected: (cycle?.amountExpectedPerMember ?? 0) * members.length,
       paidCount: paid.length,
+      currentRound,
+      totalRounds,
+      nextBeneficiary,
+      progress: totalRounds > 0 ? Math.min(1, (currentRound - 1) / totalRounds) : 0,
     };
   },
 
@@ -58,6 +77,7 @@ export const tontineService = {
       memberId: input.memberId,
       amount: input.amount,
       status: input.status,
+      reference: existingIndex >= 0 ? contributions[existingIndex].reference : generateReference(),
       note: input.note,
       paidAt: input.status === 'paid' ? new Date().toISOString() : undefined,
       createdAt: existingIndex >= 0 ? contributions[existingIndex].createdAt : new Date().toISOString(),
@@ -77,5 +97,43 @@ export const tontineService = {
       at: contribution.createdAt,
     });
     return contribution;
+  },
+
+  /** Admin marks the current beneficiary as paid out and advances the rotation to the next member. */
+  async advanceRound(groupId: string): Promise<void> {
+    await delay();
+    const group = groups.find((g) => g.id === groupId);
+    if (!group) return;
+    const members = memberships.filter((m) => m.groupId === groupId && m.status === 'active');
+    const current = members.find((m) => m.position === (group.currentRound ?? 1));
+    if (current) current.hasReceivedPayout = true;
+
+    const totalRounds = members.length;
+    const nextRound = (group.currentRound ?? 1) + 1;
+
+    if (nextRound > totalRounds) {
+      group.tontineStatus = 'completed';
+      activityEvents.unshift({
+        id: genId('a'),
+        type: 'cycle_completed',
+        title: 'Cycle terminé',
+        description: `Tous les membres de ${group.name} ont reçu la cagnotte — le cycle est terminé.`,
+        groupId,
+        at: new Date().toISOString(),
+      });
+      return;
+    }
+
+    group.currentRound = nextRound;
+    const next = members.find((m) => m.position === nextRound);
+    activityEvents.unshift({
+      id: genId('a'),
+      type: 'order_updated',
+      title: 'Tour suivant',
+      description: `${next?.displayName ?? 'Le prochain membre'} est maintenant bénéficiaire de ${group.name}.`,
+      groupId,
+      userName: next?.displayName,
+      at: new Date().toISOString(),
+    });
   },
 };

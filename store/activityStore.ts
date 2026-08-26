@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { activityService } from '@/services/activityService';
-import type { AsyncStatus } from './groupStore';
+import type { AsyncStatus } from './asyncStatus';
 import type { ActivityEvent } from '@/types/entities';
 
 interface ActivityState {

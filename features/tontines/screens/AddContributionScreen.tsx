@@ -39,7 +39,7 @@ export function AddContributionScreen() {
     if (!memberId || !summary?.cycle) return;
     setSaving(true);
     try {
-      await addContribution({
+      const contribution = await addContribution({
         groupId,
         cycleId: summary.cycle.id,
         memberId,
@@ -47,7 +47,7 @@ export function AddContributionScreen() {
         status: paid ? 'paid' : 'pending',
         note: note.trim() || undefined,
       });
-      router.replace(`/group/${groupId}/tontine/contribution-success?memberName=${encodeURIComponent(selectedMember?.displayName ?? '')}&amount=${amount}`);
+      router.replace(`/group/${groupId}/tontine/contribution-success?contributionId=${contribution.id}`);
     } finally {
       setSaving(false);
     }

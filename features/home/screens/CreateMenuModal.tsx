@@ -6,9 +6,8 @@ import { SectionTitleText, BodyMdText } from '@/components/ui/Typography';
 import { Colors } from '@/constants/theme';
 
 const OPTIONS = [
-  { icon: 'assignment' as const, title: 'Formulaire', description: 'Collecter des informations', href: '/form/create' as const },
-  { icon: 'groups' as const, title: 'Groupe', description: 'Réunir des membres', href: '/group/create' as const },
-  { icon: 'savings' as const, title: 'Tontine', description: 'Gérer des cotisations', href: '/group/create?kind=tontine' as const },
+  { icon: 'savings' as const, title: 'Tontine', description: 'Gérer des cotisations', href: '/tontine/create' as const },
+  { icon: 'assignment' as const, title: 'Formulaire', description: 'Collecter des informations', href: '/form/new' as const },
   { icon: 'event' as const, title: 'Activité', description: 'Organiser une activité', href: '/new-activity' as const },
 ];
 

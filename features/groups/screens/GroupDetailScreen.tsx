@@ -94,7 +94,7 @@ export function GroupDetailScreen() {
                   label="Ajouter un membre"
                   icon="person-add"
                   iconPosition="left"
-                  onPress={() => router.push(`/group/${groupId}/invite`)}
+                  onPress={() => router.push(`/group/${groupId}/add-member`)}
                 />
                 <View className="flex-row gap-3">
                   <SecondaryButton label="Inviter" icon="ios-share" onPress={() => router.push(`/group/${groupId}/invite`)} />
@@ -128,7 +128,7 @@ export function GroupDetailScreen() {
         {tab === 'Membres' && (
           <View className="gap-3">
             <View className="flex-row gap-3">
-              <PrimaryButton label="Ajouter un membre" onPress={() => router.push(`/group/${groupId}/invite`)} />
+              <PrimaryButton label="Ajouter un membre" onPress={() => router.push(`/group/${groupId}/add-member`)} />
               <SecondaryButton label="Inviter" onPress={() => router.push(`/group/${groupId}/invite`)} />
             </View>
             {membersStatus[groupId] === 'loading' && <LoadingState />}
@@ -139,6 +139,7 @@ export function GroupDetailScreen() {
                     <MemberRow
                       name={member.displayName}
                       role={member.role}
+                      accountType={member.accountType}
                       subtitle={member.status === 'invited' ? 'Invitation en attente' : undefined}
                       onMorePress={() => {}}
                     />

@@ -1,5 +1,6 @@
 import { Image, Pressable, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { MaterialIcons } from '@expo/vector-icons';
 import { TextField } from '@/components/ui/TextField';
 import { Chip } from '@/components/ui/Chip';
@@ -49,6 +50,19 @@ export function FieldRenderer({ field, value, onChange }: FieldRendererProps) {
         onChangeText={(t) => onChange(t)}
         keyboardType="numbers-and-punctuation"
         icon="calendar-today"
+      />
+    );
+  }
+
+  if (field.type === 'time') {
+    return (
+      <TextField
+        label={label}
+        placeholder="HH:MM"
+        value={typeof value === 'string' ? value : ''}
+        onChangeText={(t) => onChange(t)}
+        keyboardType="numbers-and-punctuation"
+        icon="schedule"
       />
     );
   }
@@ -126,6 +140,27 @@ export function FieldRenderer({ field, value, onChange }: FieldRendererProps) {
               <LabelText>Ajouter une photo</LabelText>
             </>
           )}
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (field.type === 'file') {
+    const fileName = typeof value === 'string' ? value : null;
+    const pick = async () => {
+      const result = await DocumentPicker.getDocumentAsync({ multiple: false });
+      if (!result.canceled && result.assets[0]) onChange(result.assets[0].name);
+    };
+    return (
+      <View className="gap-2">
+        <LabelText className="text-text-secondary">{label}</LabelText>
+        <Pressable
+          onPress={pick}
+          className="flex-row items-center gap-3 rounded-md border border-dashed border-border bg-background-secondary p-4 active:opacity-80">
+          <MaterialIcons name={fileName ? 'insert-drive-file' : 'attach-file'} size={22} color={fileName ? Colors.primary : Colors.textMuted} />
+          <BodyLgText numberOfLines={1} className="flex-1">
+            {fileName ?? 'Choisir un fichier'}
+          </BodyLgText>
         </Pressable>
       </View>
     );

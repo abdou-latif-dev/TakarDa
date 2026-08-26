@@ -32,7 +32,7 @@ export function HomeScreen() {
   const goToTontine = () => {
     const tontine = groups.find((g) => g.kind === 'tontine');
     if (tontine) router.push(`/group/${tontine.id}/tontine`);
-    else router.push('/group/create?kind=tontine');
+    else router.push('/tontine/create');
   };
 
   return (
@@ -61,14 +61,14 @@ export function HomeScreen() {
               icon="assignment"
               title="Formulaire"
               subtitle="Collecter des infos"
-              onPress={() => router.push('/form')}
+              onPress={() => router.push('/(tabs)/forms')}
             />
             <QuickActionCard icon="savings" title="Tontine" subtitle="Gérer une tontine" onPress={goToTontine} />
             <QuickActionCard
-              icon="groups"
-              title="Groupe"
-              subtitle="Créer et gérer"
-              onPress={() => router.push('/(tabs)/groups')}
+              icon="dashboard-customize"
+              title="Modèles"
+              subtitle="Bibliothèque de formulaires"
+              onPress={() => router.push('/form/templates')}
             />
             <QuickActionCard
               icon="qr-code-scanner"

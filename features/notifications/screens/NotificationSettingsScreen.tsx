@@ -12,13 +12,13 @@ import { storage } from '@/services/storage';
 const SETTINGS = [
   { key: 'contributions', icon: 'payments', label: 'Cotisations' },
   { key: 'forms', icon: 'assignment', label: 'Formulaires' },
-  { key: 'groups', icon: 'groups', label: 'Groupes' },
+  { key: 'tontines', icon: 'savings', label: 'Tontines' },
   { key: 'activities', icon: 'schedule', label: 'Activités' },
   { key: 'security', icon: 'shield', label: 'Sécurité' },
 ] as const satisfies readonly { key: string; icon: keyof typeof MaterialIcons.glyphMap; label: string }[];
 
 const STORAGE_KEY = 'notification_preferences';
-const DEFAULTS: Record<string, boolean> = { contributions: true, forms: true, groups: false, activities: true, security: true };
+const DEFAULTS: Record<string, boolean> = { contributions: true, forms: true, tontines: false, activities: true, security: true };
 
 export function NotificationSettingsScreen() {
   const [prefs, setPrefs] = useState<Record<string, boolean>>(DEFAULTS);

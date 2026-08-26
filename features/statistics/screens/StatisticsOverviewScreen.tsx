@@ -36,7 +36,7 @@ export function StatisticsOverviewScreen() {
             <View className="flex-row flex-wrap gap-3">
               <StatCard icon="assignment" label="Formulaires" value={overview.formsCount} trend={overview.formsTrend} className="basis-[47%]" />
               <StatCard icon="qr-code-scanner" label="QR scannés" value={overview.qrScannedCount} trend={overview.qrScannedTrend} className="basis-[47%]" />
-              <StatCard icon="groups" label="Groupes" value={overview.groupsCount} trend={overview.groupsTrend} className="basis-[47%]" />
+              <StatCard icon="savings" label="Tontines" value={overview.tontinesCount} trend={overview.tontinesTrend} className="basis-[47%]" />
               <StatCard icon="schedule" label="Activités" value={overview.activitiesCount} trend={overview.activitiesTrend} className="basis-[47%]" />
             </View>
 

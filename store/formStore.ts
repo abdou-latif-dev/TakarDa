@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { formService } from '@/services/formService';
-import type { AsyncStatus } from './groupStore';
+import type { AsyncStatus } from './asyncStatus';
 import type { FormDefinition, FormField } from '@/types/entities';
 
 interface FormState {

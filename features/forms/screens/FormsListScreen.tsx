@@ -23,9 +23,8 @@ export function FormsListScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       <AppHeader
-        title="Mes formulaires"
-        showBack
-        trailing={<IconButton icon="add" onPress={() => router.push('/form/create')} />}
+        title="Formulaires"
+        trailing={<IconButton icon="add" onPress={() => router.push('/form/new')} />}
       />
       <ScrollView contentContainerClassName="gap-4 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         {status === 'loading' && <LoadingState />}
@@ -36,7 +35,7 @@ export function FormsListScreen() {
             title="Aucun formulaire"
             description="Créez votre premier formulaire pour commencer à collecter des réponses."
             actionLabel="Créer un formulaire"
-            onAction={() => router.push('/form/create')}
+            onAction={() => router.push('/form/new')}
           />
         )}
 

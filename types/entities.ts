@@ -10,6 +10,7 @@ export type UserRole = 'admin' | 'member' | 'agent';
 
 export interface User {
   id: ID;
+  formeaseId: string; // short, shareable handle (e.g. "FE-4821") used to find a person by ID
   name: string;
   email: string;
   phone?: string;
@@ -18,10 +19,15 @@ export interface User {
 }
 
 // ---- Groups & memberships -------------------------------------------------
-// A user can belong to (and create) many groups, with a role per membership —
-// never assume a single global role for a user.
+// "Group" is an internal storage abstraction, not a user-facing concept in
+// V1 — the only kind a person actually creates and sees is a Tontine. A user
+// can belong to (and create) many, with a role per membership — never assume
+// a single global role for a user.
 
 export type GroupKind = 'general' | 'tontine';
+export type TontineFrequency = 'daily' | 'weekly' | 'monthly' | 'custom';
+export type TontineOrderMethod = 'join_order' | 'draw' | 'manual';
+export type TontineStatus = 'active' | 'completed';
 
 export interface Group {
   id: ID;
@@ -33,7 +39,16 @@ export interface Group {
   memberCount: number;
   createdAt: ISODateString;
   updatedAt: ISODateString;
+  // Tontine-specific — present when kind === 'tontine'.
+  contributionAmount?: number;
+  frequency?: TontineFrequency;
+  startDate?: ISODateString;
+  orderMethod?: TontineOrderMethod;
+  currentRound?: number;
+  tontineStatus?: TontineStatus;
 }
+
+export type MemberAccountType = 'formease_user' | 'guest';
 
 export interface Membership {
   id: ID;
@@ -45,6 +60,11 @@ export interface Membership {
   joinedAt: ISODateString;
   lastActiveAt?: ISODateString;
   status: 'active' | 'invited' | 'inactive';
+  // Tontine rotation & guest-member support.
+  accountType?: MemberAccountType;
+  phone?: string;
+  position?: number;
+  hasReceivedPayout?: boolean;
 }
 
 // ---- Tontine / contributions -----------------------------------------------
@@ -67,6 +87,7 @@ export interface Contribution {
   memberId: ID; // Membership.id
   amount: number;
   status: ContributionStatus;
+  reference: string; // digital-receipt reference, e.g. "FE-98234"
   note?: string;
   paidAt?: ISODateString;
   createdAt: ISODateString;
@@ -80,10 +101,12 @@ export type FieldType =
   | 'phone'
   | 'email'
   | 'date'
+  | 'time'
   | 'choice'
   | 'select'
   | 'checkbox'
   | 'image'
+  | 'file'
   | 'signature'
   | 'section';
 
@@ -105,6 +128,16 @@ export interface FormField {
   order: number;
 }
 
+/** A pre-built, clonable form — the starting point offered by the template library. */
+export interface FormTemplate {
+  id: ID;
+  name: string;
+  description: string;
+  category: 'tontine' | 'commerce' | 'inventaire' | 'inscription' | 'feedback' | 'association' | 'autre';
+  icon: string; // MaterialIcons glyph name
+  fields: Omit<FormField, 'id' | 'order'>[];
+}
+
 export interface FormDefinition {
   id: ID;
   title: string;
@@ -112,6 +145,7 @@ export interface FormDefinition {
   fields: FormField[];
   ownerId: ID;
   groupId?: ID;
+  templateId?: ID;
   responseCount: number;
   createdAt: ISODateString;
   updatedAt: ISODateString;
@@ -158,9 +192,13 @@ export type ActivityType =
   | 'member_joined'
   | 'member_invited'
   | 'form_submitted'
+  | 'form_created'
+  | 'form_updated'
   | 'qr_scanned'
   | 'group_created'
-  | 'activity_created';
+  | 'activity_created'
+  | 'order_updated'
+  | 'cycle_completed';
 
 export interface ActivityEvent {
   id: ID;
@@ -193,8 +231,8 @@ export interface StatisticsOverview {
   formsTrend: number | null;
   qrScannedCount: number;
   qrScannedTrend: number | null;
-  groupsCount: number;
-  groupsTrend: number | null;
+  tontinesCount: number;
+  tontinesTrend: number | null;
   activitiesCount: number;
   activitiesTrend: number | null;
   weeklyActivity: { label: string; value: number }[];

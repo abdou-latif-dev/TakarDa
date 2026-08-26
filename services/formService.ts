@@ -1,4 +1,4 @@
-import { CURRENT_USER_ID, delay, forms, genId } from './db';
+import { activityEvents, CURRENT_USER_ID, delay, forms, genId } from './db';
 import type { FormDefinition, FormField } from '@/types/entities';
 
 export const formService = {
@@ -28,6 +28,13 @@ export const formService = {
       updatedAt: new Date().toISOString(),
     };
     forms.unshift(form);
+    activityEvents.unshift({
+      id: genId('a'),
+      type: 'form_created',
+      title: 'Formulaire créé',
+      description: `${form.title} a été créé.`,
+      at: form.createdAt,
+    });
     return form;
   },
 

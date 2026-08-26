@@ -32,12 +32,17 @@ export function ProfileScreen() {
           <HeadlineText className="mt-2">{user?.name}</HeadlineText>
           <BodyMdText>{user?.email}</BodyMdText>
           {user?.phone && <BodyMdText>{user.phone}</BodyMdText>}
+          {user?.formeaseId && (
+            <View className="mt-1 rounded-full bg-surface-container px-3 py-1">
+              <BodyMdText className="text-text-primary">ID FormEase : {user.formeaseId}</BodyMdText>
+            </View>
+          )}
         </View>
 
         <Card className="gap-1">
           <SettingsRow icon="person-outline" label="Mon compte" onPress={() => router.push('/account')} />
-          <SettingsRow icon="groups" label="Mes groupes" onPress={() => router.push('/(tabs)/groups')} />
-          <SettingsRow icon="assignment" label="Mes formulaires" onPress={() => router.push('/form')} />
+          <SettingsRow icon="savings" label="Mes tontines" onPress={() => router.push('/(tabs)/tontines')} />
+          <SettingsRow icon="assignment" label="Mes formulaires" onPress={() => router.push('/(tabs)/forms')} />
           <SettingsRow icon="bar-chart" label="Statistiques" onPress={() => router.push('/statistics')} />
         </Card>
 
@@ -48,6 +53,7 @@ export function ProfileScreen() {
             onPress={() => router.push('/notifications/settings')}
           />
           <SettingsRow icon="security" label="Sécurité" onPress={() => router.push('/account/security')} />
+          <SettingsRow icon="folder" label="Stockage" onPress={() => router.push('/account/storage')} />
           <SettingsRow icon="tune" label="Paramètres" onPress={() => router.push('/notifications/settings')} />
         </Card>
 

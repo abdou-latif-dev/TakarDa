@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { submissionService, type ScanOutcome } from '@/services/submissionService';
-import type { AsyncStatus } from './groupStore';
+import type { AsyncStatus } from './asyncStatus';
 import type { Submission, SubmissionAnswer, SubmissionStatus } from '@/types/entities';
 
 interface SubmissionState {

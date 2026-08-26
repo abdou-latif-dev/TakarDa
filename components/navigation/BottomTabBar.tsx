@@ -8,13 +8,13 @@ import { Colors } from '@/constants/theme';
 
 const TAB_META: Record<string, { label: string; icon: keyof typeof MaterialIcons.glyphMap }> = {
   index: { label: 'Accueil', icon: 'home' },
-  activity: { label: 'Activité', icon: 'schedule' },
+  tontines: { label: 'Tontines', icon: 'savings' },
   create: { label: 'Créer', icon: 'add' },
-  groups: { label: 'Groupes', icon: 'groups' },
+  forms: { label: 'Formulaires', icon: 'assignment' },
   profile: { label: 'Profil', icon: 'person' },
 };
 
-/** Custom 5-tab bar: Accueil / Activité / Créer (elevated FAB) / Groupes / Profil. */
+/** Custom 5-tab bar: Accueil / Tontines / Créer (elevated FAB) / Formulaires / Profil. */
 export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 

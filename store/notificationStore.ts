@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { notificationService } from '@/services/notificationService';
-import type { AsyncStatus } from './groupStore';
+import type { AsyncStatus } from './asyncStatus';
 import type { AppNotification } from '@/types/entities';
 
 interface NotificationState {

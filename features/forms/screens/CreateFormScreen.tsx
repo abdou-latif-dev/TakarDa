@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -12,28 +12,35 @@ import { Colors } from '@/constants/theme';
 import { FIELD_TYPE_META } from '@/constants/fieldTypes';
 import { useFormStore } from '@/store/formStore';
 
+/** Handles both "Créer de zéro" (no formId param — starts a blank form) and
+ * "Modifier" an existing/template-cloned form (formId param — just loads it). */
 export function CreateFormScreen() {
+  const { formId: existingFormId } = useLocalSearchParams<{ formId?: string }>();
   const { activeForm, createForm, updateForm, fetchForm, removeField } = useFormStore();
   const [title, setTitle] = useState('Nouveau Formulaire Client');
   const [description, setDescription] = useState('');
-  const createdRef = useRef(false);
+  const initializedRef = useRef(false);
+  const syncedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (createdRef.current) return;
-    createdRef.current = true;
-    createForm({ title: 'Nouveau Formulaire Client' });
-  }, [createForm]);
-
-  const formId = activeForm?.id;
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+    if (existingFormId) fetchForm(existingFormId);
+    else createForm({ title: 'Nouveau Formulaire Client' });
+  }, [existingFormId, fetchForm, createForm]);
 
   useEffect(() => {
-    if (formId) fetchForm(formId);
-  }, [formId, fetchForm]);
+    if (activeForm && syncedRef.current !== activeForm.id) {
+      syncedRef.current = activeForm.id;
+      setTitle(activeForm.title);
+      setDescription(activeForm.description ?? '');
+    }
+  }, [activeForm]);
 
   if (!activeForm) {
     return (
       <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
-        <AppHeader title="Créer un formulaire" showBack />
+        <AppHeader title={existingFormId ? 'Modifier le formulaire' : 'Créer un formulaire'} showBack />
         <View className="px-page-margin">
           <LoadingState />
         </View>
@@ -43,7 +50,7 @@ export function CreateFormScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
-      <AppHeader title="Créer un formulaire" showBack />
+      <AppHeader title={existingFormId ? 'Modifier le formulaire' : 'Créer un formulaire'} showBack />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-6" keyboardShouldPersistTaps="handled">
         <View className="gap-3">

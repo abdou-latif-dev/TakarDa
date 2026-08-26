@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { statisticsService } from '@/services/statisticsService';
-import type { AsyncStatus } from './groupStore';
+import type { AsyncStatus } from './asyncStatus';
 import type { StatisticsOverview } from '@/types/entities';
 
 interface StatisticsState {

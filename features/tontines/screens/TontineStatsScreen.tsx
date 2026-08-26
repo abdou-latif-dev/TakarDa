@@ -63,7 +63,10 @@ export function TontineStatsScreen() {
             <StatCard icon="pie-chart" label="Participation" value={`${participation} %`} className="flex-1" />
             <StatCard icon="group" label="Membres" value={summary.members.length} className="flex-1" />
           </View>
-          <StatCard icon="schedule" label="Retard" value={lateCount} />
+          <View className="flex-row gap-3">
+            <StatCard icon="schedule" label="Retard" value={lateCount} className="flex-1" />
+            <StatCard icon="sync" label="Tour actuel" value={`${summary.currentRound} / ${summary.totalRounds}`} className="flex-1" />
+          </View>
         </View>
 
         <Card className="gap-4">

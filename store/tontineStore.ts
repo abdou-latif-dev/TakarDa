@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { tontineService, type TontineSummary } from '@/services/tontineService';
-import type { AsyncStatus } from './groupStore';
+import type { AsyncStatus } from './asyncStatus';
 import type { Contribution, ContributionStatus } from '@/types/entities';
 
 interface TontineState {
@@ -19,6 +19,7 @@ interface TontineState {
     status: ContributionStatus;
     note?: string;
   }) => Promise<Contribution>;
+  advanceRound: (groupId: string) => Promise<void>;
 }
 
 export const useTontineStore = create<TontineState>((set, get) => ({
@@ -57,5 +58,10 @@ export const useTontineStore = create<TontineState>((set, get) => ({
     const contribution = await tontineService.addContribution(input);
     await Promise.all([get().fetchSummary(input.groupId), get().fetchHistory(input.groupId)]);
     return contribution;
+  },
+
+  advanceRound: async (groupId) => {
+    await tontineService.advanceRound(groupId);
+    await get().fetchSummary(groupId);
   },
 }));

@@ -14,9 +14,13 @@ const ACTIVITY_ICON: Record<ActivityType, ComponentProps<typeof MaterialIcons>['
   member_joined: 'person-add',
   member_invited: 'person-add-alt',
   form_submitted: 'assignment-turned-in',
+  form_created: 'note-add',
+  form_updated: 'edit-note',
   qr_scanned: 'qr-code-scanner',
-  group_created: 'group-add',
+  group_created: 'savings',
   activity_created: 'event',
+  order_updated: 'swap-vert',
+  cycle_completed: 'flag',
 };
 
 const ACTIVITY_TINT: Record<ActivityType, string> = {
@@ -26,9 +30,13 @@ const ACTIVITY_TINT: Record<ActivityType, string> = {
   member_joined: Colors.info,
   member_invited: Colors.info,
   form_submitted: Colors.primary,
+  form_created: Colors.primary,
+  form_updated: Colors.info,
   qr_scanned: Colors.primary,
-  group_created: Colors.info,
+  group_created: Colors.primary,
   activity_created: Colors.info,
+  order_updated: Colors.info,
+  cycle_completed: Colors.success,
 };
 
 /** Timeline row: tinted icon circle, title + description, relative timestamp, optional amount. */

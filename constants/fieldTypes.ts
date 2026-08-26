@@ -11,12 +11,14 @@ export const FIELD_TYPE_META: Record<
   phone: { label: 'Téléphone', icon: 'call', description: 'Numéro de téléphone' },
   email: { label: 'Email', icon: 'mail-outline', description: 'Adresse email' },
   date: { label: 'Date', icon: 'calendar-today', description: 'Sélecteur de date' },
+  time: { label: 'Heure', icon: 'schedule', description: "Sélecteur d'heure" },
   choice: { label: 'Choix', icon: 'radio-button-checked', description: 'Un seul choix parmi plusieurs' },
   select: { label: 'Liste', icon: 'arrow-drop-down-circle', description: 'Sélection dans une liste déroulante' },
   checkbox: { label: 'Case à cocher', icon: 'check-box', description: 'Réponse oui/non' },
-  image: { label: 'Image', icon: 'image', description: 'Photo ou pièce jointe' },
+  image: { label: 'Photo', icon: 'image', description: 'Photo prise ou choisie dans la galerie' },
+  file: { label: 'Fichier', icon: 'attach-file', description: 'Document joint (PDF, etc.)' },
   signature: { label: 'Signature', icon: 'draw', description: 'Signature manuscrite' },
-  section: { label: 'Groupes', icon: 'view-cozy', description: 'Regroupe plusieurs champs en section' },
+  section: { label: 'Section', icon: 'view-cozy', description: 'Regroupe plusieurs champs en section' },
 };
 
 export const FIELD_TYPE_ORDER: FieldType[] = [
@@ -25,10 +27,12 @@ export const FIELD_TYPE_ORDER: FieldType[] = [
   'phone',
   'email',
   'date',
+  'time',
   'choice',
   'select',
   'checkbox',
   'image',
+  'file',
   'signature',
   'section',
 ];

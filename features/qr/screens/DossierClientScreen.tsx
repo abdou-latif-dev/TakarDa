@@ -21,6 +21,7 @@ type Tab = (typeof TABS)[number];
 const TAB_FOR_TYPE: Record<FieldType, Tab> = {
   text: 'Identité',
   date: 'Identité',
+  time: 'Identité',
   choice: 'Identité',
   select: 'Identité',
   checkbox: 'Informations',
@@ -29,6 +30,7 @@ const TAB_FOR_TYPE: Record<FieldType, Tab> = {
   signature: 'Informations',
   email: 'Contact',
   phone: 'Contact',
+  file: 'Documents',
   image: 'Documents',
 };
 
