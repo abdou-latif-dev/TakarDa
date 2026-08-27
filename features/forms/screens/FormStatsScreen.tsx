@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,13 +12,12 @@ import { Colors } from '@/constants/theme';
 import { statisticsService } from '@/services/statisticsService';
 import { useFormStore } from '@/store/formStore';
 
-const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-
 interface Breakdown {
   responses: number;
   validated: number;
   pending: number;
   rejected: number;
+  weeklyResponses: { label: string; value: number }[];
 }
 
 export function FormStatsScreen() {
@@ -30,11 +29,6 @@ export function FormStatsScreen() {
     fetchForm(formId);
     statisticsService.getFormStatistics(formId).then(setStats);
   }, [formId, fetchForm]);
-
-  const weeklyData = useMemo(() => {
-    const base = stats?.responses ?? 10;
-    return DAYS.map((label, i) => ({ label, value: Math.max(1, Math.round(base * [0.4, 0.6, 0.5, 1, 0.7, 0.3, 0.2][i])) }));
-  }, [stats]);
 
   if (!activeForm || !stats) {
     return (
@@ -78,13 +72,15 @@ export function FormStatsScreen() {
           ))}
         </Card>
 
-        <Card className="gap-4">
-          <View className="flex-row items-center justify-between">
-            <SectionTitleText className="text-base">Évolution</SectionTitleText>
-            <LabelText>7 derniers jours</LabelText>
-          </View>
-          <BarChart data={weeklyData} />
-        </Card>
+        {stats.responses > 0 && (
+          <Card className="gap-4">
+            <View className="flex-row items-center justify-between">
+              <SectionTitleText className="text-base">Évolution</SectionTitleText>
+              <LabelText>7 derniers jours</LabelText>
+            </View>
+            <BarChart data={stats.weeklyResponses} />
+          </Card>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

@@ -19,6 +19,8 @@ function generateReference(): string {
   return `FE-${Math.floor(10000 + Math.random() * 89999)}`;
 }
 
+const MONTH_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+
 export const tontineService = {
   async getSummary(groupId: string): Promise<TontineSummary> {
     await delay();
@@ -49,6 +51,25 @@ export const tontineService = {
       nextBeneficiary,
       progress: totalRounds > 0 ? Math.min(1, (currentRound - 1) / totalRounds) : 0,
     };
+  },
+
+  /** Real monthly totals (in FCFA) from paid contributions over the last 6 months — never fabricated. */
+  async getMonthlyContributions(groupId: string): Promise<{ label: string; value: number }[]> {
+    await delay(200);
+    const now = new Date();
+    const paid = contributions.filter((c) => c.groupId === groupId && c.status === 'paid');
+    const months: { label: string; value: number }[] = [];
+    for (let offset = 5; offset >= 0; offset--) {
+      const month = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+      const total = paid
+        .filter((c) => {
+          const paidAt = new Date(c.paidAt ?? c.createdAt);
+          return paidAt.getFullYear() === month.getFullYear() && paidAt.getMonth() === month.getMonth();
+        })
+        .reduce((sum, c) => sum + c.amount, 0);
+      months.push({ label: MONTH_LABELS[month.getMonth()], value: Math.round(total / 1000) });
+    }
+    return months;
   },
 
   async listHistory(groupId: string): Promise<Contribution[]> {

@@ -6,12 +6,13 @@ import { AppHeader } from '@/components/ui/AppHeader';
 import { TextField, TextAreaField } from '@/components/ui/TextField';
 import { Chip } from '@/components/ui/Chip';
 import { PrimaryButton } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/States';
 import { LabelText } from '@/components/ui/Typography';
 import { useGroupStore } from '@/store/groupStore';
 import { useActivityStore } from '@/store/activityStore';
 
 export function CreateActivityScreen() {
-  const { groups, fetchGroups } = useGroupStore();
+  const { groups, status, fetchGroups } = useGroupStore();
   const createEvent = useActivityStore((s) => s.createEvent);
   const [groupId, setGroupId] = useState<string | undefined>();
   const [title, setTitle] = useState('');
@@ -39,6 +40,23 @@ export function CreateActivityScreen() {
       setSaving(false);
     }
   };
+
+  if (status !== 'loading' && groups.length === 0) {
+    return (
+      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+        <AppHeader title="Organiser une activité" showBack />
+        <View className="px-page-margin pt-4">
+          <EmptyState
+            icon="savings"
+            title="Aucune tontine pour l'instant"
+            description="Créez d'abord une tontine pour pouvoir y organiser une activité."
+            actionLabel="Créer une tontine"
+            onAction={() => router.replace('/tontine/create')}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>

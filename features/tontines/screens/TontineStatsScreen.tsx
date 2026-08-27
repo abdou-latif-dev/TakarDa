@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,28 +11,19 @@ import { LoadingState } from '@/components/ui/States';
 import { formatFcfa } from '@/utils/format';
 import { useGroupStore } from '@/store/groupStore';
 import { useTontineStore } from '@/store/tontineStore';
-
-const MONTHS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+import { tontineService } from '@/services/tontineService';
 
 export function TontineStatsScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const group = useGroupStore((s) => s.groups.find((g) => g.id === groupId));
   const { summaries, summaryStatus, fetchSummary } = useTontineStore();
   const summary = summaries[groupId];
+  const [monthlyData, setMonthlyData] = useState<{ label: string; value: number }[] | null>(null);
 
   useEffect(() => {
     fetchSummary(groupId);
+    tontineService.getMonthlyContributions(groupId).then(setMonthlyData);
   }, [groupId, fetchSummary]);
-
-  const monthlyData = useMemo(() => {
-    const now = new Date();
-    const base = summary?.totalCollected ?? 60000;
-    return Array.from({ length: 6 }).map((_, i) => {
-      const monthIndex = (now.getMonth() - (5 - i) + 12) % 12;
-      const variance = [0.6, 0.7, 0.85, 0.75, 0.9, 1][i];
-      return { label: MONTHS[monthIndex], value: Math.round((base * variance) / 1000) };
-    });
-  }, [summary]);
 
   if (summaryStatus[groupId] !== 'success' || !summary) {
     return (
@@ -69,10 +60,12 @@ export function TontineStatsScreen() {
           </View>
         </View>
 
-        <Card className="gap-4">
-          <SectionTitleText className="text-base">Contributions mensuelles (en milliers FCFA)</SectionTitleText>
-          <BarChart data={monthlyData} />
-        </Card>
+        {summary.totalCollected > 0 && monthlyData && (
+          <Card className="gap-4">
+            <SectionTitleText className="text-base">Contributions mensuelles (en milliers FCFA)</SectionTitleText>
+            <BarChart data={monthlyData} />
+          </Card>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
