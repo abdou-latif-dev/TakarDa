@@ -20,7 +20,12 @@ export const formTemplateService = {
       description: template.description,
       ownerId: CURRENT_USER_ID,
       templateId: template.id,
-      fields: template.fields.map((field, i) => ({ ...field, id: genId('ff'), order: i })),
+      fields: template.fields.map((field, i) => ({
+        ...field,
+        id: genId('ff'),
+        order: i,
+        options: field.options?.map((o) => ({ ...o })),
+      })),
       responseCount: 0,
       createdAt: now,
       updatedAt: now,

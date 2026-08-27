@@ -6,7 +6,7 @@ import { StatCard } from '@/components/ui/StatCard';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { BarChart } from '@/components/ui/BarChart';
-import { LoadingState, ErrorState } from '@/components/ui/States';
+import { LoadingState, ErrorState, EmptyState } from '@/components/ui/States';
 import { BodyMdText, SectionTitleText } from '@/components/ui/Typography';
 import { useStatisticsStore } from '@/store/statisticsStore';
 
@@ -17,9 +17,13 @@ export function StatisticsOverviewScreen() {
     fetchOverview();
   }, [fetchOverview]);
 
+  const hasData = overview
+    ? overview.formsCount > 0 || overview.tontinesCount > 0 || overview.activitiesCount > 0
+    : false;
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-      <AppHeader title="Statistiques" showBack />
+      <AppHeader title="Statistiques" />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         <View>
           <BodyMdText>Aperçu de votre activité globale</BodyMdText>
@@ -31,7 +35,15 @@ export function StatisticsOverviewScreen() {
         {status === 'loading' && <LoadingState />}
         {status === 'error' && <ErrorState onRetry={fetchOverview} />}
 
-        {overview && (
+        {overview && !hasData && (
+          <EmptyState
+            icon="bar-chart"
+            title="Aucune statistique pour l'instant"
+            description="Vos statistiques apparaîtront ici lorsque vous commencerez à utiliser vos modèles."
+          />
+        )}
+
+        {overview && hasData && (
           <>
             <View className="flex-row flex-wrap gap-3">
               <StatCard icon="assignment" label="Formulaires" value={overview.formsCount} trend={overview.formsTrend} className="basis-[47%]" />

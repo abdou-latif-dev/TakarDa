@@ -13,6 +13,7 @@ interface FormState {
   fetchForm: (formId: string) => Promise<void>;
   createForm: (input: { title: string; description?: string; groupId?: string }) => Promise<FormDefinition>;
   updateForm: (formId: string, patch: { title?: string; description?: string }) => Promise<void>;
+  deleteForm: (formId: string) => Promise<void>;
   addField: (formId: string, field: Omit<FormField, 'id' | 'order'>) => Promise<FormField>;
   updateField: (formId: string, fieldId: string, patch: Partial<FormField>) => Promise<void>;
   removeField: (formId: string, fieldId: string) => Promise<void>;
@@ -50,6 +51,14 @@ export const useFormStore = create<FormState>((set) => ({
     set((s) => ({
       activeForm: s.activeForm?.id === formId ? form : s.activeForm,
       forms: s.forms.map((f) => (f.id === formId ? form : f)),
+    }));
+  },
+
+  deleteForm: async (formId) => {
+    await formService.deleteForm(formId);
+    set((s) => ({
+      forms: s.forms.filter((f) => f.id !== formId),
+      activeForm: s.activeForm?.id === formId ? null : s.activeForm,
     }));
   },
 

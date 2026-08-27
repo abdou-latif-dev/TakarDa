@@ -17,6 +17,7 @@ import {
 } from '@expo-google-fonts/manrope';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { useAuthStore } from '@/store/authStore';
+import { hydrateDb, startAutoPersist } from '@/services/persistence';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -39,11 +40,23 @@ export default function RootLayout() {
   const restore = useAuthStore((s) => s.restore);
   const authStatus = useAuthStore((s) => s.status);
   const [timedOut, setTimedOut] = useState(false);
+  const [dbHydrated, setDbHydrated] = useState(false);
   const hiddenRef = useRef(false);
 
+  // Local data (tontines, forms, submissions, activity...) must be restored
+  // before auth restores the session and before any screen's fetch() runs,
+  // otherwise stores would hydrate from the still-empty in-memory arrays.
   useEffect(() => {
-    restore();
-  }, [restore]);
+    hydrateDb()
+      .catch(() => {})
+      .finally(() => setDbHydrated(true));
+  }, []);
+
+  useEffect(() => {
+    if (dbHydrated) restore();
+  }, [dbHydrated, restore]);
+
+  useEffect(() => startAutoPersist(), []);
 
   useEffect(() => {
     if (fontError) console.warn('Font loading failed, continuing with system fonts:', fontError);
@@ -54,7 +67,7 @@ export default function RootLayout() {
     return () => clearTimeout(timer);
   }, []);
 
-  const ready = (fontsLoaded || !!fontError || timedOut) && (authStatus === 'ready' || timedOut);
+  const ready = (fontsLoaded || !!fontError || timedOut) && ((dbHydrated && authStatus === 'ready') || timedOut);
 
   useEffect(() => {
     if (ready && !hiddenRef.current) {

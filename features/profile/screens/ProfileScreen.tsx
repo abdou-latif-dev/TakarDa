@@ -41,9 +41,8 @@ export function ProfileScreen() {
 
         <Card className="gap-1">
           <SettingsRow icon="person-outline" label="Mon compte" onPress={() => router.push('/account')} />
-          <SettingsRow icon="savings" label="Mes tontines" onPress={() => router.push('/(tabs)/tontines')} />
-          <SettingsRow icon="assignment" label="Mes formulaires" onPress={() => router.push('/(tabs)/forms')} />
-          <SettingsRow icon="bar-chart" label="Statistiques" onPress={() => router.push('/statistics')} />
+          <SettingsRow icon="dashboard-customize" label="Mes modèles" onPress={() => router.push('/(tabs)/modeles')} />
+          <SettingsRow icon="bar-chart" label="Statistiques" onPress={() => router.push('/(tabs)/statistiques')} />
         </Card>
 
         <Card className="gap-1">

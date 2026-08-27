@@ -1,4 +1,14 @@
-import { activityEvents, CURRENT_USER_ID, delay, genId, groups, memberships, tontineCycles, users } from './db';
+import {
+  activityEvents,
+  contributions,
+  CURRENT_USER_ID,
+  delay,
+  genId,
+  groups,
+  memberships,
+  tontineCycles,
+  users,
+} from './db';
 import { formatMonthYear } from '@/utils/format';
 import type { Group, Membership, TontineFrequency, TontineOrderMethod } from '@/types/entities';
 
@@ -181,6 +191,30 @@ export const groupService = {
       title: "Ordre de passage modifié",
       description: `L'ordre de réception de ${group?.name ?? 'la tontine'} a été mis à jour.`,
       groupId,
+      at: new Date().toISOString(),
+    });
+  },
+
+  /** Deletes a tontine and every record tied to it (members, cotisations, cycles). */
+  async deleteTontine(groupId: string): Promise<void> {
+    await delay();
+    const index = groups.findIndex((g) => g.id === groupId);
+    if (index === -1) return;
+    const [removed] = groups.splice(index, 1);
+    for (let i = memberships.length - 1; i >= 0; i--) {
+      if (memberships[i].groupId === groupId) memberships.splice(i, 1);
+    }
+    for (let i = contributions.length - 1; i >= 0; i--) {
+      if (contributions[i].groupId === groupId) contributions.splice(i, 1);
+    }
+    for (let i = tontineCycles.length - 1; i >= 0; i--) {
+      if (tontineCycles[i].groupId === groupId) tontineCycles.splice(i, 1);
+    }
+    activityEvents.unshift({
+      id: genId('a'),
+      type: 'tontine_deleted',
+      title: 'Tontine supprimée',
+      description: `${removed.name} a été supprimée.`,
       at: new Date().toISOString(),
     });
   },

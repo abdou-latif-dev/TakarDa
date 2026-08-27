@@ -16,6 +16,7 @@ interface GroupState {
   addFormeaseMember: (groupId: string, formeaseId: string) => Promise<void>;
   addGuestMember: (groupId: string, input: { firstName: string; lastName: string; phone?: string }) => Promise<void>;
   setMemberOrder: (groupId: string, orderedMembershipIds: string[]) => Promise<void>;
+  deleteTontine: (groupId: string) => Promise<void>;
   getGroup: (groupId: string) => Group | undefined;
 }
 
@@ -68,6 +69,11 @@ export const useGroupStore = create<GroupState>((set, get) => ({
   setMemberOrder: async (groupId, orderedMembershipIds) => {
     await groupService.setMemberOrder(groupId, orderedMembershipIds);
     await get().fetchMembers(groupId);
+  },
+
+  deleteTontine: async (groupId) => {
+    await groupService.deleteTontine(groupId);
+    set((s) => ({ groups: s.groups.filter((g) => g.id !== groupId) }));
   },
 
   getGroup: (groupId) => get().groups.find((g) => g.id === groupId),

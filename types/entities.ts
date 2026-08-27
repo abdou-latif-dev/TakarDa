@@ -133,7 +133,7 @@ export interface FormTemplate {
   id: ID;
   name: string;
   description: string;
-  category: 'tontine' | 'commerce' | 'inventaire' | 'inscription' | 'feedback' | 'association' | 'autre';
+  category: 'tontine' | 'commerce' | 'inventaire' | 'inscription' | 'feedback' | 'association' | 'couture' | 'autre';
   icon: string; // MaterialIcons glyph name
   fields: Omit<FormField, 'id' | 'order'>[];
 }
@@ -198,7 +198,9 @@ export type ActivityType =
   | 'group_created'
   | 'activity_created'
   | 'order_updated'
-  | 'cycle_completed';
+  | 'cycle_completed'
+  | 'form_deleted'
+  | 'tontine_deleted';
 
 export interface ActivityEvent {
   id: ID;

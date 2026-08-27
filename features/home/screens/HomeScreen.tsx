@@ -61,7 +61,7 @@ export function HomeScreen() {
               icon="assignment"
               title="Formulaire"
               subtitle="Collecter des infos"
-              onPress={() => router.push('/(tabs)/forms')}
+              onPress={() => router.push('/(tabs)/modeles')}
             />
             <QuickActionCard icon="savings" title="Tontine" subtitle="Gérer une tontine" onPress={goToTontine} />
             <QuickActionCard

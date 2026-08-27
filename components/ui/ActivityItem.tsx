@@ -21,6 +21,8 @@ const ACTIVITY_ICON: Record<ActivityType, ComponentProps<typeof MaterialIcons>['
   activity_created: 'event',
   order_updated: 'swap-vert',
   cycle_completed: 'flag',
+  form_deleted: 'delete-outline',
+  tontine_deleted: 'delete-outline',
 };
 
 const ACTIVITY_TINT: Record<ActivityType, string> = {
@@ -37,6 +39,8 @@ const ACTIVITY_TINT: Record<ActivityType, string> = {
   activity_created: Colors.info,
   order_updated: Colors.info,
   cycle_completed: Colors.success,
+  form_deleted: Colors.error,
+  tontine_deleted: Colors.error,
 };
 
 /** Timeline row: tinted icon circle, title + description, relative timestamp, optional amount. */

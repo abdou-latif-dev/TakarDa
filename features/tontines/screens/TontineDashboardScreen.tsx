@@ -6,7 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { Card } from '@/components/ui/Card';
 import { MemberRow } from '@/components/ui/MemberRow';
-import { PrimaryButton, SecondaryButton } from '@/components/ui/Button';
+import { PrimaryButton, SecondaryButton, IconButton } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { LoadingState } from '@/components/ui/States';
@@ -26,8 +26,10 @@ const STATUS_MAP: Record<ContributionStatus, 'paid' | 'pending' | 'late'> = {
 export function TontineDashboardScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const group = useGroupStore((s) => s.groups.find((g) => g.id === groupId));
+  const deleteTontine = useGroupStore((s) => s.deleteTontine);
   const { summaries, summaryStatus, fetchSummary, advanceRound } = useTontineStore();
   const [advancing, setAdvancing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const summary = summaries[groupId];
 
@@ -71,9 +73,32 @@ export function TontineDashboardScreen() {
     );
   };
 
+  const onDelete = () => {
+    Alert.alert(
+      'Supprimer cette tontine',
+      `"${group?.name}" et toutes ses données (membres, cotisations, historique) seront définitivement supprimés. Continuer ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteTontine(groupId);
+              router.replace('/(tabs)/modeles');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-      <AppHeader showBack />
+      <AppHeader showBack trailing={<IconButton icon="delete-outline" onPress={onDelete} disabled={deleting} />} />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         <View>
           <DisplayText className="text-2xl">{group?.name}</DisplayText>

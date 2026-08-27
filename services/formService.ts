@@ -1,4 +1,4 @@
-import { activityEvents, CURRENT_USER_ID, delay, forms, genId } from './db';
+import { activityEvents, CURRENT_USER_ID, delay, forms, genId, submissions } from './db';
 import type { FormDefinition, FormField } from '@/types/entities';
 
 export const formService = {
@@ -44,7 +44,32 @@ export const formService = {
     if (!form) throw new Error('Formulaire introuvable.');
     Object.assign(form, patch);
     form.updatedAt = new Date().toISOString();
+    activityEvents.unshift({
+      id: genId('a'),
+      type: 'form_updated',
+      title: 'Modèle modifié',
+      description: `${form.title} a été mis à jour.`,
+      at: form.updatedAt,
+    });
     return form;
+  },
+
+  /** Deletes a user's model and its collected submissions. Never touches formTemplates. */
+  async deleteForm(formId: string): Promise<void> {
+    await delay();
+    const index = forms.findIndex((f) => f.id === formId);
+    if (index === -1) return;
+    const [removed] = forms.splice(index, 1);
+    for (let i = submissions.length - 1; i >= 0; i--) {
+      if (submissions[i].formId === formId) submissions.splice(i, 1);
+    }
+    activityEvents.unshift({
+      id: genId('a'),
+      type: 'form_deleted',
+      title: 'Modèle supprimé',
+      description: `${removed.title} a été supprimé.`,
+      at: new Date().toISOString(),
+    });
   },
 
   async addField(formId: string, field: Omit<FormField, 'id' | 'order'>): Promise<{ form: FormDefinition; field: FormField }> {

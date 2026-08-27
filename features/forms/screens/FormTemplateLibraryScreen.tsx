@@ -16,6 +16,7 @@ const CATEGORIES: { value: FormTemplate['category'] | 'all'; label: string }[] =
   { value: 'tontine', label: 'Tontine' },
   { value: 'commerce', label: 'Commerce' },
   { value: 'inventaire', label: 'Inventaire' },
+  { value: 'couture', label: 'Couture' },
   { value: 'inscription', label: 'Inscription' },
   { value: 'association', label: 'Association' },
   { value: 'feedback', label: 'Feedback' },

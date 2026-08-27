@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Alert, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -7,7 +7,7 @@ import { AppHeader } from '@/components/ui/AppHeader';
 import { Card } from '@/components/ui/Card';
 import { LoadingState } from '@/components/ui/States';
 import { DisplayText, BodyMdText, LabelText } from '@/components/ui/Typography';
-import { PrimaryButton, SecondaryButton } from '@/components/ui/Button';
+import { PrimaryButton, SecondaryButton, IconButton } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
 import { FieldRenderer } from '@/features/forms/components/FieldRenderer';
 import { useFormStore } from '@/store/formStore';
@@ -15,12 +15,36 @@ import type { SubmissionAnswer } from '@/types/entities';
 
 export function FormPreviewScreen() {
   const { formId } = useLocalSearchParams<{ formId: string }>();
-  const { activeForm, fetchForm } = useFormStore();
+  const { activeForm, fetchForm, deleteForm } = useFormStore();
   const [answers, setAnswers] = useState<Record<string, SubmissionAnswer['value']>>({});
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchForm(formId);
   }, [formId, fetchForm]);
+
+  const onDelete = () => {
+    Alert.alert(
+      'Supprimer ce modèle',
+      `"${activeForm?.title}" et les données déjà collectées seront définitivement supprimés. Continuer ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteForm(formId);
+              router.replace('/(tabs)/modeles');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   if (!activeForm) {
     return (
@@ -35,7 +59,10 @@ export function FormPreviewScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-      <AppHeader showBack />
+      <AppHeader
+        showBack
+        trailing={<IconButton icon="edit" onPress={() => router.push(`/form/${activeForm.id}/edit`)} />}
+      />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" keyboardShouldPersistTaps="handled">
         <View className="flex-row items-center gap-2 self-start rounded-full bg-success-container px-3 py-1">
           <MaterialIcons name="check-circle" size={14} color={Colors.success} />
@@ -76,6 +103,7 @@ export function FormPreviewScreen() {
             icon="bar-chart"
             onPress={() => router.push(`/form/${activeForm.id}/stats`)}
           />
+          <SecondaryButton label="Supprimer ce modèle" icon="delete-outline" loading={deleting} onPress={onDelete} />
         </View>
       </ScrollView>
     </SafeAreaView>
