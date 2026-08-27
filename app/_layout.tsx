@@ -1,3 +1,9 @@
+// Must be the very first import: nanoid (used by every genId() call in
+// services/db.ts to create tontines, forms, submissions, etc.) needs
+// crypto.getRandomValues, which React Native does not provide natively.
+// Without this, every create/save action fails with a silently-swallowed
+// exception — the button looks like it does nothing.
+import 'react-native-get-random-values';
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import '../global.css';
