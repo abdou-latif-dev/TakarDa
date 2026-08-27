@@ -63,7 +63,7 @@ export function AddContributionScreen() {
         <View style={{ width: 50 }} />
       </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
       <ScrollView contentContainerClassName="gap-4 px-page-margin pb-6" keyboardShouldPersistTaps="handled">
         <Card className="gap-0 p-0">
           <Pressable onPress={() => setPickerOpen((o) => !o)} className="flex-row items-center gap-3 p-gutter-card">

@@ -86,7 +86,7 @@ export function FormFillScreen() {
         <ProgressBar progress={progress} />
       </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
       <ScrollView contentContainerClassName="gap-5 px-page-margin py-6" keyboardShouldPersistTaps="handled">
         <View>
           <DisplayText className="text-2xl">{activeForm.title}</DisplayText>

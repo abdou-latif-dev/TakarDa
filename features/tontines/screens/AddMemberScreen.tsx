@@ -55,7 +55,7 @@ export function AddMemberScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <AppHeader title="Ajouter" showBack />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
         <ScrollView contentContainerClassName="gap-5 px-page-margin pb-8 pt-2" keyboardShouldPersistTaps="handled">
           <Card className="gap-4">
             <View className="flex-row items-center gap-3">

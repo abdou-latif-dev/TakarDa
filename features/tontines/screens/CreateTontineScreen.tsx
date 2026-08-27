@@ -95,7 +95,7 @@ export function CreateTontineScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <AppHeader title="Créer une Tontine" showBack />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
         <ScrollView contentContainerClassName="gap-6 px-page-margin pb-6 pt-2" keyboardShouldPersistTaps="handled">
           <BodyMdText>Configurez les détails de votre nouvelle tontine.</BodyMdText>
 
