@@ -19,10 +19,7 @@ export function CreateMenuModal() {
         {OPTIONS.map((option) => (
           <Pressable
             key={option.title}
-            onPress={() => {
-              router.back();
-              router.push(option.href as never);
-            }}
+            onPress={() => router.replace(option.href as never)}
             className="flex-row items-center gap-4 rounded-lg border border-border p-gutter-card active:bg-background-secondary">
             <View className="h-12 w-12 items-center justify-center rounded-full bg-surface-container">
               <MaterialIcons name={option.icon} size={22} color={Colors.textPrimary} />

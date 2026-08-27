@@ -86,7 +86,7 @@ export function TontineDashboardScreen() {
             setDeleting(true);
             try {
               await deleteTontine(groupId);
-              router.replace('/(tabs)/modeles');
+              router.replace({ pathname: '/(tabs)/modeles', params: { justDeleted: 'Tontine supprimée' } });
             } finally {
               setDeleting(false);
             }

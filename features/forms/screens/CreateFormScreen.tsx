@@ -107,7 +107,10 @@ export function CreateFormScreen() {
         </View>
       </ScrollView>
 
-      <View className="border-t border-border px-page-margin pb-4 pt-4">
+      <View className="gap-2 border-t border-border px-page-margin pb-4 pt-4">
+        {activeForm.fields.length === 0 && (
+          <LabelText className="text-center">Ajoutez au moins un champ pour enregistrer ce formulaire.</LabelText>
+        )}
         <PrimaryButton
           label="Enregistrer le formulaire"
           disabled={activeForm.fields.length === 0}

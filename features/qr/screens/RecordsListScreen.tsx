@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { SearchBar } from '@/components/ui/SearchBar';
@@ -26,6 +26,7 @@ const FILTERS: { label: string; value: SubmissionStatus | 'all' }[] = [
 const STATUS_MAP = { pending: 'pending', validated: 'validated', rejected: 'rejected', correction_requested: 'pending' } as const;
 
 export function RecordsListScreen() {
+  const { formId: filterFormId, formTitle } = useLocalSearchParams<{ formId?: string; formTitle?: string }>();
   const { submissions, status, fetchAll } = useSubmissionStore();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<SubmissionStatus | 'all'>('all');
@@ -34,27 +35,32 @@ export function RecordsListScreen() {
     fetchAll();
   }, [fetchAll]);
 
+  const scoped = useMemo(
+    () => (filterFormId ? submissions.filter((s) => s.formId === filterFormId) : submissions),
+    [submissions, filterFormId],
+  );
+
   const filtered = useMemo(
     () =>
-      submissions
+      scoped
         .filter((s) => filter === 'all' || s.status === filter)
         .filter((s) => s.clientName.toLowerCase().includes(search.trim().toLowerCase())),
-    [submissions, filter, search],
+    [scoped, filter, search],
   );
 
   const counts = useMemo(
     () => ({
-      total: submissions.length,
-      validated: submissions.filter((s) => s.status === 'validated').length,
-      pending: submissions.filter((s) => s.status === 'pending').length,
-      rejected: submissions.filter((s) => s.status === 'rejected').length,
+      total: scoped.length,
+      validated: scoped.filter((s) => s.status === 'validated').length,
+      pending: scoped.filter((s) => s.status === 'pending').length,
+      rejected: scoped.filter((s) => s.status === 'rejected').length,
     }),
-    [submissions],
+    [scoped],
   );
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-      <AppHeader title="Réponses" showBack />
+      <AppHeader title={filterFormId ? formTitle || 'Réponses' : 'Réponses'} showBack />
       <ScrollView contentContainerClassName="gap-5 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         {status === 'loading' && <LoadingState />}
         {status === 'error' && <ErrorState onRetry={fetchAll} />}
@@ -77,11 +83,15 @@ export function RecordsListScreen() {
             </ScrollView>
 
             {filtered.length === 0 ? (
-              submissions.length === 0 ? (
+              scoped.length === 0 ? (
                 <EmptyState
                   icon="inbox"
                   title="Aucun dossier"
-                  description="Les dossiers apparaîtront ici dès qu'un client aura soumis un formulaire et que vous aurez scanné son QR code."
+                  description={
+                    filterFormId
+                      ? 'Les soumissions de ce formulaire apparaîtront ici.'
+                      : "Les dossiers apparaîtront ici dès qu'un client aura soumis un formulaire et que vous aurez scanné son QR code."
+                  }
                 />
               ) : (
                 <EmptyState icon="search-off" title="Aucun résultat" description="Aucun dossier ne correspond à cette recherche." />

@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -85,13 +85,23 @@ function TontineCard({ tontine }: { tontine: Group }) {
 }
 
 export function MesModelesScreen() {
+  const { justDeleted } = useLocalSearchParams<{ justDeleted?: string }>();
   const { groups, status: groupsStatus, fetchGroups, fetchMembers } = useGroupStore();
   const { forms, status: formsStatus, fetchForms } = useFormStore();
+  const [confirmation, setConfirmation] = useState<string | null>(null);
 
   useEffect(() => {
     fetchGroups();
     fetchForms();
   }, [fetchGroups, fetchForms]);
+
+  useEffect(() => {
+    if (!justDeleted) return;
+    setConfirmation(justDeleted);
+    router.setParams({ justDeleted: undefined });
+    const timer = setTimeout(() => setConfirmation(null), 2500);
+    return () => clearTimeout(timer);
+  }, [justDeleted]);
 
   const tontines = useMemo(() => groups.filter((g) => g.kind === 'tontine'), [groups]);
 
@@ -110,6 +120,14 @@ export function MesModelesScreen() {
         title="Mes modèles"
         trailing={<IconButton icon="add" onPress={() => router.push('/modals/create-menu')} />}
       />
+      {confirmation && (
+        <View className="mx-page-margin mb-2 flex-row items-center gap-2 self-start rounded-full bg-success-container px-3 py-1.5">
+          <MaterialIcons name="check-circle" size={14} color={Colors.success} />
+          <LabelText style={{ color: Colors.success }} className="font-inter-semibold">
+            {confirmation}
+          </LabelText>
+        </View>
+      )}
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         {loading && tontines.length === 0 && forms.length === 0 && <LoadingState />}
         {hasError && <ErrorState onRetry={() => { fetchGroups(); fetchForms(); }} />}

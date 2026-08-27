@@ -11,6 +11,8 @@ interface FormState {
 
   fetchForms: () => Promise<void>;
   fetchForm: (formId: string) => Promise<void>;
+  /** Re-reads one form from the service and patches it wherever it's cached (activeForm + forms list) — used to reflect changes made by other stores (e.g. a new submission bumping responseCount). */
+  refreshForm: (formId: string) => Promise<void>;
   createForm: (input: { title: string; description?: string; groupId?: string }) => Promise<FormDefinition>;
   updateForm: (formId: string, patch: { title?: string; description?: string }) => Promise<void>;
   deleteForm: (formId: string) => Promise<void>;
@@ -38,6 +40,15 @@ export const useFormStore = create<FormState>((set) => ({
   fetchForm: async (formId) => {
     const form = await formService.getForm(formId);
     set({ activeForm: form });
+  },
+
+  refreshForm: async (formId) => {
+    const form = await formService.getForm(formId);
+    if (!form) return;
+    set((s) => ({
+      activeForm: s.activeForm?.id === formId ? form : s.activeForm,
+      forms: s.forms.some((f) => f.id === formId) ? s.forms.map((f) => (f.id === formId ? form : f)) : s.forms,
+    }));
   },
 
   createForm: async (input) => {

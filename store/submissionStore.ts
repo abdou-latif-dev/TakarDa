@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { submissionService, type ScanOutcome } from '@/services/submissionService';
+import { useFormStore } from './formStore';
 import type { AsyncStatus } from './asyncStatus';
 import type { Submission, SubmissionAnswer, SubmissionStatus } from '@/types/entities';
 
@@ -42,6 +43,9 @@ export const useSubmissionStore = create<SubmissionState>((set) => ({
   createSubmission: async (input) => {
     const submission = await submissionService.createSubmission(input);
     set((s) => ({ submissions: [submission, ...s.submissions], activeSubmission: submission }));
+    // The submission bumped the form's responseCount in db.ts — refresh formStore's
+    // cached copy (activeForm/forms) so FormPreviewScreen/MesModelesScreen reflect it immediately.
+    await useFormStore.getState().refreshForm(input.formId);
     return submission;
   },
 

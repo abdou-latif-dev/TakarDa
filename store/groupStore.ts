@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { groupService, type CreateTontineInput } from '@/services/groupService';
+import { useTontineStore } from './tontineStore';
 import type { AsyncStatus } from './asyncStatus';
 import type { Group, Membership } from '@/types/entities';
 
@@ -58,17 +59,20 @@ export const useGroupStore = create<GroupState>((set, get) => ({
 
   addFormeaseMember: async (groupId, formeaseId) => {
     await groupService.addFormeaseMember(groupId, formeaseId);
-    await Promise.all([get().fetchMembers(groupId), get().fetchGroups()]);
+    // The tontine dashboard reads its member list from tontineStore's cached
+    // summary, not from groupStore — refresh it too so the new member shows
+    // up immediately without leaving and re-entering the tontine.
+    await Promise.all([get().fetchMembers(groupId), get().fetchGroups(), useTontineStore.getState().fetchSummary(groupId)]);
   },
 
   addGuestMember: async (groupId, input) => {
     await groupService.addGuestMember(groupId, input);
-    await Promise.all([get().fetchMembers(groupId), get().fetchGroups()]);
+    await Promise.all([get().fetchMembers(groupId), get().fetchGroups(), useTontineStore.getState().fetchSummary(groupId)]);
   },
 
   setMemberOrder: async (groupId, orderedMembershipIds) => {
     await groupService.setMemberOrder(groupId, orderedMembershipIds);
-    await get().fetchMembers(groupId);
+    await Promise.all([get().fetchMembers(groupId), useTontineStore.getState().fetchSummary(groupId)]);
   },
 
   deleteTontine: async (groupId) => {

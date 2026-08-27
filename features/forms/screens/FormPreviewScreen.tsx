@@ -36,7 +36,7 @@ export function FormPreviewScreen() {
             setDeleting(true);
             try {
               await deleteForm(formId);
-              router.replace('/(tabs)/modeles');
+              router.replace({ pathname: '/(tabs)/modeles', params: { justDeleted: 'Modèle supprimé' } });
             } finally {
               setDeleting(false);
             }
@@ -102,6 +102,11 @@ export function FormPreviewScreen() {
             label="Voir les statistiques"
             icon="bar-chart"
             onPress={() => router.push(`/form/${activeForm.id}/stats`)}
+          />
+          <SecondaryButton
+            label="Voir les soumissions"
+            icon="inbox"
+            onPress={() => router.push(`/records?formId=${activeForm.id}&formTitle=${encodeURIComponent(activeForm.title)}`)}
           />
           <SecondaryButton label="Supprimer ce modèle" icon="delete-outline" loading={deleting} onPress={onDelete} />
         </View>

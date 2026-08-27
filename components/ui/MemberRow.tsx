@@ -30,8 +30,8 @@ export function MemberRow({
   onPress,
   onMorePress,
 }: MemberRowProps) {
-  return (
-    <Pressable onPress={onPress} className="flex-row items-center gap-3 py-3 active:opacity-80">
+  const content = (
+    <>
       <Avatar name={name} uri={avatarUrl} size={44} />
       <View className="flex-1">
         <View className="flex-row items-center gap-2">
@@ -57,6 +57,18 @@ export function MemberRow({
           <MaterialIcons name="more-vert" size={20} color={Colors.textMuted} />
         </Pressable>
       )}
+    </>
+  );
+
+  // Only render as a Pressable (with press feedback) when there's an actual
+  // action — a row with no onPress must not look tappable.
+  if (!onPress) {
+    return <View className="flex-row items-center gap-3 py-3">{content}</View>;
+  }
+
+  return (
+    <Pressable onPress={onPress} className="flex-row items-center gap-3 py-3 active:opacity-80">
+      {content}
     </Pressable>
   );
 }

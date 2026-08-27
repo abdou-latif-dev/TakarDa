@@ -8,13 +8,13 @@ import { Colors } from '@/constants/theme';
 
 const TAB_META: Record<string, { label: string; icon: keyof typeof MaterialIcons.glyphMap }> = {
   index: { label: 'Accueil', icon: 'home' },
-  modeles: { label: 'Mes modèles', icon: 'dashboard-customize' },
+  modeles: { label: 'Modèles', icon: 'dashboard-customize' },
   create: { label: 'Créer', icon: 'add' },
-  statistiques: { label: 'Statistiques', icon: 'bar-chart' },
+  statistiques: { label: 'Stats', icon: 'bar-chart' },
   profile: { label: 'Profil', icon: 'person' },
 };
 
-/** Custom 5-tab bar: Accueil / Mes modèles / Créer (elevated FAB) / Statistiques / Profil. */
+/** Custom 5-tab bar: Accueil / Modèles / Créer (elevated FAB) / Stats / Profil. */
 export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
@@ -52,7 +52,9 @@ export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
         return (
           <Pressable key={route.key} onPress={onPress} className="flex-1 items-center gap-1">
             <MaterialIcons name={meta.icon} size={24} color={isFocused ? Colors.primary : Colors.textMuted} />
-            <LabelText className={isFocused ? 'font-inter-semibold text-primary' : undefined}>{meta.label}</LabelText>
+            <LabelText numberOfLines={1} className={isFocused ? 'font-inter-semibold text-primary' : undefined}>
+              {meta.label}
+            </LabelText>
           </Pressable>
         );
       })}
