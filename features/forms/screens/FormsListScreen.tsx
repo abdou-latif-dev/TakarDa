@@ -21,7 +21,7 @@ export function FormsListScreen() {
   }, [fetchForms]);
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <AppHeader
         title="Formulaires"
         trailing={<IconButton icon="add" onPress={() => router.push('/form/new')} />}

@@ -8,7 +8,7 @@ import { cn } from '@/utils/cn';
  */
 export function BottomSheetCard({ className, children, ...props }: ViewProps & { className?: string }) {
   return (
-    <View className={cn('flex-1 rounded-t-xl bg-surface pt-3', className)} {...props}>
+    <View className={cn('rounded-t-xl bg-surface pt-3', className)} {...props}>
       <View className="mb-2 self-center h-1 w-9 rounded-full bg-surface-container-high" />
       {children}
     </View>

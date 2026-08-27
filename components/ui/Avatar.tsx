@@ -25,7 +25,9 @@ export function Avatar({ name, uri, size = 48, className }: AvatarProps) {
     <View
       style={{ width: size, height: size, borderRadius: size / 2 }}
       className={cn('items-center justify-center bg-primary-soft', className)}>
-      <LabelText className="text-primary-dark font-inter-semibold" style={{ fontSize: size * 0.36 }}>
+      <LabelText
+        className="text-primary-dark font-inter-semibold"
+        style={{ fontSize: size * 0.36, lineHeight: size * 0.4 }}>
         {initials(name)}
       </LabelText>
     </View>

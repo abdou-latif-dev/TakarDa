@@ -47,7 +47,7 @@ export function FormTemplateLibraryScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <AppHeader showBack />
       <View className="gap-4 px-page-margin pt-2">
         <View>

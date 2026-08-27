@@ -42,7 +42,7 @@ export function FormReviewScreen() {
 
   if (!activeForm) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
         <AppHeader showBack />
         <View className="px-page-margin">
           <LoadingState />
@@ -62,7 +62,7 @@ export function FormReviewScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <AppHeader showBack />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10">
         <View>

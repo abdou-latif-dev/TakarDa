@@ -59,7 +59,7 @@ export function RecordsListScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <AppHeader title={filterFormId ? formTitle || 'Réponses' : 'Réponses'} showBack />
       <ScrollView contentContainerClassName="gap-5 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         {status === 'loading' && <LoadingState />}

@@ -24,7 +24,7 @@ export function StorageScreen() {
   }, [fetchUsage]);
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <AppHeader title="Stockage" showBack />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         {status === 'loading' && !usage && <LoadingState />}

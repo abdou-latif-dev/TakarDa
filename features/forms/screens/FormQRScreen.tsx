@@ -22,7 +22,7 @@ export function FormQRScreen() {
 
   if (!activeSubmission) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
         <AppHeader title="Votre dossier" showBack />
         <View className="px-page-margin">
           <LoadingState />
@@ -34,7 +34,7 @@ export function FormQRScreen() {
   const hoursLeft = Math.max(0, Math.round((new Date(activeSubmission.qrExpiresAt).getTime() - Date.now()) / 3_600_000));
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <AppHeader title="Votre dossier" showBack />
       <View className="flex-1 justify-center gap-6 px-page-margin">
         <StatusBadge status={STATUS_MAP[activeSubmission.status]} className="self-center" />

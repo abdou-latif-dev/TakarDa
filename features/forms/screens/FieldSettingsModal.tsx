@@ -42,7 +42,7 @@ export function FieldSettingsModal() {
   };
 
   return (
-    <BottomSheetCard>
+    <BottomSheetCard className="flex-1">
       <View className="flex-row items-center justify-between px-page-margin pb-4">
         <SectionTitleText numberOfLines={1} className="flex-1">
           Paramètres du champ

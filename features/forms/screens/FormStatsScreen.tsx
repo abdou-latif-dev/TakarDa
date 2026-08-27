@@ -32,7 +32,7 @@ export function FormStatsScreen() {
 
   if (!activeForm || !stats) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
         <AppHeader showBack />
         <View className="px-page-margin">
           <LoadingState />
@@ -44,7 +44,7 @@ export function FormStatsScreen() {
   const completion = stats.responses > 0 ? Math.round(((stats.validated + stats.rejected) / stats.responses) * 100) : 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <AppHeader showBack />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         <View>

@@ -38,7 +38,7 @@ export function ActiveMembersScreen() {
   }, [groupMembers]);
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <AppHeader title="Membres actifs" showBack />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         <BodyMdText>Aperçu de l&apos;activité des membres de votre groupe.</BodyMdText>

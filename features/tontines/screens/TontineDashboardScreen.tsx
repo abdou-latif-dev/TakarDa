@@ -39,7 +39,7 @@ export function TontineDashboardScreen() {
 
   if (summaryStatus[groupId] !== 'success' || !summary) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
         <AppHeader showBack />
         <View className="px-page-margin">
           <LoadingState />
@@ -97,7 +97,7 @@ export function TontineDashboardScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <AppHeader showBack trailing={<IconButton icon="delete-outline" onPress={onDelete} disabled={deleting} />} />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         <View>

@@ -27,7 +27,7 @@ export function TontineStatsScreen() {
 
   if (summaryStatus[groupId] !== 'success' || !summary) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
         <AppHeader showBack />
         <View className="px-page-margin">
           <LoadingState />
@@ -40,7 +40,7 @@ export function TontineStatsScreen() {
   const lateCount = Object.values(summary.contributionsByMember).filter((c) => c?.status === 'late').length;
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <AppHeader showBack />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         <View>

@@ -94,7 +94,7 @@ export function MesTontinesScreen() {
   }, [active.length]);
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <AppHeader
         title="Mes tontines"
         trailing={<IconButton icon="add" onPress={() => router.push('/tontine/create')} />}
