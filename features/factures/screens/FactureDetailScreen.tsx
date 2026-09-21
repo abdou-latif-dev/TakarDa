@@ -8,7 +8,7 @@ import { Chip } from '@/components/ui/Chip';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/Button';
 import { LoadingState } from '@/components/ui/States';
 import { SectionTitleText, LabelText, BodyMdText } from '@/components/ui/Typography';
-import { CoreFieldRenderer } from '@/features/factures/components/CoreFieldRenderer';
+import { CoreFieldRenderer } from '@/components/core/CoreFieldRenderer';
 import { useCoreStore } from '@/store/coreStore';
 import { ensureFacturesTool } from '@/services/facturesService';
 import { coreService } from '@/services/coreService';

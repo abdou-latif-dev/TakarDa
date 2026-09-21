@@ -23,6 +23,7 @@ import {
 } from '@expo-google-fonts/manrope';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeStore } from '@/store/themeStore';
 import { hydrateDb, startAutoPersist } from '@/services/persistence';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -81,6 +82,14 @@ export default function RootLayout() {
   }, [dbHydrated, restore]);
 
   useEffect(() => startAutoPersist(), []);
+
+  // Theme preference: in-memory defaults already match {mode:'light',
+  // accentKey:'default'}, so this never needs to gate `ready` the way
+  // dbHydrated does — it only overwrites the defaults once AsyncStorage
+  // resolves, with nothing to show differently in between.
+  useEffect(() => {
+    useThemeStore.getState().hydrate();
+  }, []);
 
   useEffect(() => {
     if (fontError) console.warn('Font loading failed, continuing with system fonts:', fontError);

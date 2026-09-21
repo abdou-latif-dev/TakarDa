@@ -1,24 +1,34 @@
 /**
- * FormEase design tokens — mirrors tailwind.config.js.
+ * TakarDa design tokens — mirrors tailwind.config.js.
  * Use these for values NativeWind className strings can't express
  * (SVG props, chart colors, dynamic style objects, Stack screen options).
+ *
+ * `primary*` is the ACCENT — the one color the whole app is allowed to vary
+ * (a future "Apparence" screen would let a user pick a different accent; see
+ * store/themeStore.ts for the persisted preference this points to). Every
+ * other token is a neutral (monochrome scale) or a semantic feedback color
+ * (success/error/warning/info) that must stay fixed regardless of accent —
+ * a red error and a green success need to read as red/green no matter what
+ * the user's chosen brand color is. No module (Factures, Immobilier, ...)
+ * may hardcode its own color literal — see the "Étape 2" report for the one
+ * instance (Factures' StatusDefinition) that used to and was fixed.
  */
 
 export const Colors = {
-  primary: '#FF7A00',
-  primaryDark: '#994700',
-  primaryLight: '#FFB68B',
-  primarySoft: '#FFF1E5',
+  primary: '#171717',
+  primaryDark: '#000000',
+  primaryLight: '#595959',
+  primarySoft: '#F0F0F0',
 
   background: '#FFFFFF',
   backgroundSecondary: '#F7F7F8',
   surface: '#FFFFFF',
-  surfaceContainer: '#F0F0F2',
-  surfaceContainerHigh: '#E8E8E9',
-  border: '#EDEDEF',
+  surfaceContainer: '#EEEEEE',
+  surfaceContainerHigh: '#E0E0E0',
+  border: '#E5E5E5',
 
   textPrimary: '#171717',
-  textSecondary: '#6B6B6B',
+  textSecondary: '#666666',
   textMuted: '#9A9A9A',
   textOnPrimary: '#FFFFFF',
 
@@ -34,6 +44,65 @@ export const Colors = {
   skeleton: '#EEEEEF',
   emptyIcon: '#DADADB',
 } as const;
+
+/** Explicit shape of the token architecture — `Colors` above is the "default"
+ * implementation of it. Kept separate from `Colors` (rather than typing
+ * `Colors` itself) so a future alternate theme object can be checked against
+ * the same contract without touching the working default. */
+export interface ThemeTokens {
+  background: string;
+  backgroundSecondary: string;
+  surface: string;
+  surfaceContainer: string;
+  border: string;
+  textPrimary: string;
+  textSecondary: string;
+  accent: string;
+  accentDark: string;
+  accentSoft: string;
+  success: string;
+  warning: string;
+  danger: string;
+}
+
+export const defaultTheme: ThemeTokens = {
+  background: Colors.background,
+  backgroundSecondary: Colors.backgroundSecondary,
+  surface: Colors.surface,
+  surfaceContainer: Colors.surfaceContainer,
+  border: Colors.border,
+  textPrimary: Colors.textPrimary,
+  textSecondary: Colors.textSecondary,
+  accent: Colors.primary,
+  accentDark: Colors.primaryDark,
+  accentSoft: Colors.primarySoft,
+  success: Colors.success,
+  warning: Colors.warning,
+  danger: Colors.error,
+};
+
+/** Semantic keys a domain service can put on a StatusDefinition.color instead
+ * of a raw hex — resolved against the live theme by the UI. Nothing renders
+ * this yet (no screen currently colors a status chip from StatusDefinition.color),
+ * but Immobilier/Factures already seed their statuses with these keys so the
+ * wiring is a pure UI change whenever a screen wants it, never a data migration. */
+export type SemanticColorKey = 'success' | 'warning' | 'danger' | 'accent' | 'muted';
+
+export function resolveSemanticColor(key: string | undefined): string {
+  switch (key as SemanticColorKey) {
+    case 'success':
+      return Colors.success;
+    case 'warning':
+      return Colors.warning;
+    case 'danger':
+      return Colors.error;
+    case 'accent':
+      return Colors.primary;
+    case 'muted':
+    default:
+      return Colors.textMuted;
+  }
+}
 
 export const Fonts = {
   displayLg: { fontFamily: 'Manrope_800ExtraBold', fontSize: 34, lineHeight: 42, letterSpacing: -0.6 },

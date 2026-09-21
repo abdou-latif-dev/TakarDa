@@ -5,6 +5,17 @@
 // This file only knows how to provision the "Factures" Tool + "Facture"
 // EntityDefinition once, idempotently. Screens then talk to coreService /
 // store/coreStore.ts directly like any other Core-backed module.
+//
+// Reviewed against the H-PAY audit (Étape 2): its CEET/TDE "calculateur"
+// splits one already-known invoice across several tenants sharing a meter —
+// a genuinely different feature (Immobilier × Factures territory, see §9 of
+// the report) that this "suivi de facture" module deliberately does not
+// absorb. H-PAY itself has no due-date, no compteur reference and no
+// justificatif for utility bills — this module already has all three, so
+// nothing was missing to port. The one real fix: StatusDefinition.color used
+// to hardcode this module's own hex value (#FF7A00), duplicating the app's
+// accent color in a domain file — now a semantic token key resolved by the
+// UI via constants/theme.ts, so it follows the theme like everything else.
 
 import { coreService } from './coreService';
 import type { EntityDefinition, Tool } from '@/types/entities';
@@ -34,9 +45,9 @@ export async function ensureFacturesTool(): Promise<{ tool: Tool; entityDefiniti
       icon: 'receipt-long',
       isSystem: true,
       statuses: [
-        { key: 'a_payer', label: 'À payer', color: '#FF7A00', order: 0 },
-        { key: 'payee', label: 'Payée', color: '#2E7D32', isTerminal: true, order: 1 },
-        { key: 'en_retard', label: 'En retard', color: '#BA1A1A', order: 2 },
+        { key: 'a_payer', label: 'À payer', color: 'warning', order: 0 },
+        { key: 'payee', label: 'Payée', color: 'success', isTerminal: true, order: 1 },
+        { key: 'en_retard', label: 'En retard', color: 'danger', order: 2 },
       ],
       fields: [
         {

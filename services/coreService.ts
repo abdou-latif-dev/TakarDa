@@ -19,6 +19,7 @@ import {
   externalContacts,
   genId,
   records,
+  roleDefinitions,
   toolMembers,
   tools,
 } from './db';
@@ -29,7 +30,9 @@ import type {
   ExternalContact,
   FieldDefinition,
   FieldValue,
+  PermissionSet,
   RecordItem,
+  RoleDefinition,
   Tool,
   ToolKind,
   ToolMember,
@@ -316,6 +319,19 @@ export const coreService = {
     if (index === -1) return;
     const [removed] = toolMembers.splice(index, 1);
     logEvent({ toolId: removed.toolId, type: 'member_removed', summary: `${removed.displayName} a été retiré·e.` });
+  },
+
+  // ================= RoleDefinitions (minimal — no permission enforcement yet) =================
+  async createRoleDefinition(input: { toolId: string; key: string; label: string; permissions: PermissionSet; isDefault?: boolean }): Promise<RoleDefinition> {
+    await delay(150);
+    const role: RoleDefinition = { id: genId('role'), toolId: input.toolId, key: input.key, label: input.label, permissions: input.permissions, isDefault: input.isDefault };
+    roleDefinitions.push(role);
+    return role;
+  },
+
+  async getRoleDefinitions(toolId: string): Promise<RoleDefinition[]> {
+    await delay(150);
+    return roleDefinitions.filter((r) => r.toolId === toolId);
   },
 
   // ================= ExternalContacts =================

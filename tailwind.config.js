@@ -9,21 +9,24 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Accent — the one color allowed to vary (see constants/theme.ts's
+        // header comment). Everything else here is a fixed neutral or a
+        // fixed semantic feedback color.
         primary: {
-          DEFAULT: '#FF7A00',
-          dark: '#994700',
-          light: '#FFB68B',
-          soft: '#FFF1E5',
+          DEFAULT: '#171717',
+          dark: '#000000',
+          light: '#595959',
+          soft: '#F0F0F0',
         },
         background: '#FFFFFF',
         'background-secondary': '#F7F7F8',
         surface: '#FFFFFF',
-        'surface-container': '#F0F0F2',
-        'surface-container-high': '#E8E8E9',
-        border: '#EDEDEF',
+        'surface-container': '#EEEEEE',
+        'surface-container-high': '#E0E0E0',
+        border: '#E5E5E5',
         text: {
           primary: '#171717',
-          secondary: '#6B6B6B',
+          secondary: '#666666',
           muted: '#9A9A9A',
         },
         success: {
@@ -69,7 +72,7 @@ module.exports = {
       },
       boxShadow: {
         soft: '0px 4px 12px rgba(0,0,0,0.05)',
-        'soft-primary': '0px 4px 12px rgba(255,122,0,0.2)',
+        'soft-primary': '0px 4px 12px rgba(23,23,23,0.18)',
       },
     },
   },

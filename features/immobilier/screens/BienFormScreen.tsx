@@ -7,10 +7,10 @@ import { PrimaryButton } from '@/components/ui/Button';
 import { LoadingState } from '@/components/ui/States';
 import { CoreFieldRenderer } from '@/components/core/CoreFieldRenderer';
 import { useCoreStore } from '@/store/coreStore';
-import { ensureFacturesTool } from '@/services/facturesService';
+import { ensureImmobilierTool } from '@/services/immobilierService';
 import type { EntityDefinition, FieldValue } from '@/types/entities';
 
-export function FactureFormScreen() {
+export function BienFormScreen() {
   const [entityDefinition, setEntityDefinition] = useState<EntityDefinition | null>(null);
   const [toolId, setToolId] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, FieldValue>>({});
@@ -18,16 +18,16 @@ export function FactureFormScreen() {
   const createRecord = useCoreStore((s) => s.createRecord);
 
   useEffect(() => {
-    ensureFacturesTool().then(({ tool, entityDefinition }) => {
+    ensureImmobilierTool().then(({ tool, bien }) => {
       setToolId(tool.id);
-      setEntityDefinition(entityDefinition);
+      setEntityDefinition(bien);
     });
   }, []);
 
   if (!entityDefinition || !toolId) {
     return (
       <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
-        <AppHeader title="Nouvelle facture" showBack />
+        <AppHeader title="Nouveau bien" showBack />
         <View className="px-page-margin">
           <LoadingState />
         </View>
@@ -40,12 +40,7 @@ export function FactureFormScreen() {
   const onSave = async () => {
     setSaving(true);
     try {
-      await createRecord({
-        entityDefinitionId: entityDefinition.id,
-        toolId,
-        values,
-        statusKey: 'a_payer',
-      });
+      await createRecord({ entityDefinitionId: entityDefinition.id, toolId, values });
       router.back();
     } finally {
       setSaving(false);
@@ -54,7 +49,7 @@ export function FactureFormScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
-      <AppHeader title="Nouvelle facture" showBack />
+      <AppHeader title="Nouveau bien" showBack />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
         <ScrollView contentContainerClassName="gap-4 px-page-margin pb-6" keyboardShouldPersistTaps="handled">
           {entityDefinition.fields.map((field) => (
@@ -67,7 +62,7 @@ export function FactureFormScreen() {
           ))}
         </ScrollView>
         <View className="border-t border-border px-page-margin pb-4 pt-4">
-          <PrimaryButton label="Enregistrer la facture" disabled={requiredMissing} loading={saving} onPress={onSave} />
+          <PrimaryButton label="Enregistrer le bien" disabled={requiredMissing} loading={saving} onPress={onSave} />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

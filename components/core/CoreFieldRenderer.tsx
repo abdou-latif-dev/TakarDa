@@ -14,10 +14,14 @@ interface CoreFieldRendererProps {
   onChange: (value: FieldValue) => void;
 }
 
-/** Generic renderer for Core FieldDefinition — covers the field types the first
- * Core-backed module (Factures) actually uses (text/number/amount/date/select/
- * file/image). Extend as Immobilier/Commerce need relation/multiselect/computed
- * rendering — deliberately not built ahead of a real consumer. */
+/** Generic renderer for Core FieldDefinition — shared by every Core-backed module
+ * (Factures, Immobilier, ...). Covers the field types actually in use so far
+ * (text/phone/email/number/amount/date/select/boolean/file/image). 'relation'
+ * fields are deliberately NOT rendered here — the screens that need one (e.g. a
+ * Contrat's "bien" field, a Paiement's "contrat" field) already know the target
+ * record from navigation context and set it programmatically, so no generic
+ * relation-picker UI exists yet (see "ne pas construire de moteur de relation
+ * complexe" in the Étape 2 brief). Extend as a real module needs more. */
 export function CoreFieldRenderer({ field, value, onChange }: CoreFieldRendererProps) {
   const label = `${field.label}${field.required ? ' *' : ''}`;
 
