@@ -13,13 +13,22 @@ import type {
   ActivityEvent,
   AppNotification,
   Contribution,
+  CoreEvent,
+  DocumentRef,
+  EntityDefinition,
+  ExternalContact,
   FormDefinition,
   FormTemplate,
   Group,
   Membership,
+  RecordItem,
+  RoleDefinition,
   Submission,
+  Tool,
   TontineCycle,
+  ToolMember,
   User,
+  WorkflowRule,
 } from '@/types/entities';
 
 export const delay = (ms = 350) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -38,6 +47,18 @@ export const forms: FormDefinition[] = [];
 export const submissions: Submission[] = [];
 export const activityEvents: ActivityEvent[] = [];
 export const notifications: AppNotification[] = [];
+
+// ---- Core generic engine collections (additive) ----------------------------
+// Not read/written by any Tontine or Forms code yet — see services/coreService.ts.
+export const tools: Tool[] = [];
+export const entityDefinitions: EntityDefinition[] = [];
+export const records: RecordItem[] = [];
+export const toolMembers: ToolMember[] = [];
+export const externalContacts: ExternalContact[] = [];
+export const roleDefinitions: RoleDefinition[] = [];
+export const events: CoreEvent[] = [];
+export const documents: DocumentRef[] = [];
+export const workflowRules: WorkflowRule[] = [];
 
 export const genId = (prefix: string) => `${prefix}-${nanoid(8)}`;
 
