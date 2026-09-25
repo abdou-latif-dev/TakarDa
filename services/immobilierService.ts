@@ -161,6 +161,18 @@ export async function ensureImmobilierTool(): Promise<ImmobilierEntities> {
       ],
     }));
 
+  // Additive fields keep existing local installs compatible while recording
+  // the manual payment validation date and the method noted by the owner.
+  const paiementFieldsToAdd = [
+    { key: 'mode_paiement', type: 'text' as const, label: 'Mode de paiement (note)', required: false },
+    { key: 'date_validation', type: 'date' as const, label: 'Date de validation', required: false },
+  ].filter((field) => !paiement.fields.some((current) => current.key === field.key));
+  if (paiementFieldsToAdd.length) {
+    await coreService.updateEntityDefinition(paiement.id, {
+      fields: [...paiement.fields, ...paiementFieldsToAdd.map((field, index) => ({ ...field, id: `legacy-${field.key}`, order: paiement.fields.length + index }))],
+    });
+  }
+
   const existingRoles = await coreService.getRoleDefinitions(tool.id);
   const locataireRole =
     existingRoles.find((r) => r.key === LOCATAIRE_ROLE_KEY) ??

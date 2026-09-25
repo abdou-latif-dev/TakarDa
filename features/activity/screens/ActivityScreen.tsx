@@ -31,7 +31,7 @@ export function ActivityScreen() {
   });
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <AppHeader title="Activité" />
       <View className="px-page-margin">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 pb-3">

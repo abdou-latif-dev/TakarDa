@@ -40,7 +40,7 @@ export function FormFillScreen() {
 
   if (!activeForm) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
         <AppHeader showBack />
         <View className="px-page-margin">
           <LoadingState />
@@ -74,7 +74,7 @@ export function FormFillScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader showBack={step > 0} onBack={() => setStep((s) => s - 1)} title="FormEase" />
       <View className="gap-2 px-page-margin">
         <View className="flex-row items-center justify-between">

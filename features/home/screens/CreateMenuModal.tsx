@@ -7,7 +7,10 @@ import { Colors } from '@/constants/theme';
 
 const OPTIONS = [
   { icon: 'savings' as const, title: 'Tontine', description: 'Gérer des cotisations', href: '/tontine/create' as const },
+  { icon: 'home-work' as const, title: 'Immobilier', description: 'Gérer un bien et les loyers', href: '/immobilier' as const },
+  { icon: 'receipt-long' as const, title: 'Facture', description: 'Suivre et valider un paiement', href: '/factures/new' as const },
   { icon: 'assignment' as const, title: 'Formulaire', description: 'Collecter des informations', href: '/form/new' as const },
+  { icon: 'storefront' as const, title: 'Commerce / Business', description: 'Partir d’un modèle de suivi', href: '/form/templates' as const },
   { icon: 'event' as const, title: 'Activité', description: 'Organiser une activité', href: '/new-activity' as const },
 ];
 

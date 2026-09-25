@@ -40,7 +40,7 @@ function ChoiceCard({
 
 export function NewFormChoiceScreen() {
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader showBack />
       <View className="gap-6 px-page-margin pt-2">
         <View className="items-center gap-2">

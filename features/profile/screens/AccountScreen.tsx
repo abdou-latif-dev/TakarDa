@@ -57,7 +57,7 @@ export function AccountScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Mon compte" showBack />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" keyboardShouldPersistTaps="handled">
         <View className="items-center gap-2">

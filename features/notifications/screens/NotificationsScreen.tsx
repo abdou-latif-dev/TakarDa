@@ -17,7 +17,7 @@ export function NotificationsScreen() {
   const hasUnread = notifications.some((n) => !n.read);
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader
         title="Notifications"
         showBack

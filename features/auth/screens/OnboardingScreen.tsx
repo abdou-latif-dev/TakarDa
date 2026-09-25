@@ -41,7 +41,7 @@ export function OnboardingScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <View className="flex-row justify-end px-page-margin py-2">
         {slide.skipLabel && (
           <Pressable onPress={finish} hitSlop={8}>

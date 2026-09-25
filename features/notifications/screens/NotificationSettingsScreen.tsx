@@ -36,7 +36,7 @@ export function NotificationSettingsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Notifications" showBack />
       <ScrollView contentContainerClassName="gap-4 px-page-margin pb-10">
         <Card className="gap-0 p-0">

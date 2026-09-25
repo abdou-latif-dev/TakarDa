@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/ui/AppHeader';
-import { IconButton } from '@/components/ui/Button';
+import { IconButton, SecondaryButton } from '@/components/ui/Button';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { SectionTitleText, LabelText } from '@/components/ui/Typography';
 import { Colors } from '@/constants/theme';
@@ -29,9 +29,10 @@ export function BiensListScreen() {
   const status = key ? recordsStatus[key] : 'loading';
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Immobilier" showBack trailing={<IconButton icon="add" onPress={() => router.push('/immobilier/new')} />} />
       <ScrollView contentContainerClassName="gap-3 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
+        <SecondaryButton label="Personnaliser les formulaires" icon="tune" onPress={() => router.push('/immobilier/personnaliser')} />
         {status === 'loading' && list.length === 0 && <LoadingState />}
         {status === 'error' && (
           <ErrorState onRetry={() => toolId && bienEdId && fetchRecords({ toolId, entityDefinitionId: bienEdId })} />

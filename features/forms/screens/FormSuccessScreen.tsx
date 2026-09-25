@@ -16,7 +16,7 @@ export function FormSuccessScreen() {
   }, []);
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-background">
       <View className="flex-1 items-center justify-center gap-5 px-page-margin">
         <View className="h-24 w-24 items-center justify-center rounded-full bg-primary-soft">
           <MaterialIcons name="check-circle" size={56} color={Colors.primary} />

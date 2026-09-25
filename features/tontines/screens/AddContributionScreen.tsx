@@ -54,7 +54,7 @@ export function AddContributionScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <View className="flex-row items-center justify-between px-page-margin py-3">
         <Pressable onPress={() => router.back()} hitSlop={8}>
           <LabelText className="font-inter-semibold text-text-secondary">Annuler</LabelText>

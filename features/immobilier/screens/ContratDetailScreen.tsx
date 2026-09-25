@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Share, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -52,7 +52,7 @@ export function ContratDetailScreen() {
 
   if (!entityDefinition || !contrat || !toolId) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
         <AppHeader showBack />
         <View className="px-page-margin">
           <LoadingState />
@@ -77,13 +77,37 @@ export function ContratDetailScreen() {
     }
   };
 
-  const onChangePaiementStatus = (paiementId: string) => {
-    Alert.alert('Statut du paiement', 'Choisissez le nouveau statut.', [
+  const onChangePaiementStatus = (paiement: RecordItem) => {
+    if (paiement.statusKey === 'paye') {
+      const date = String(paiement.values.date_validation ?? '');
+      Alert.alert('Loyer validé', 'Ce paiement a été validé manuellement.', [
+        { text: 'Fermer', style: 'cancel' },
+        { text: 'Partager le reçu', onPress: () => Share.share({
+          title: 'Reçu de loyer',
+          message: [
+            'REÇU DE LOYER',
+            `Locataire : ${String(contrat.values.locataire_nom ?? '—')}`,
+            `Logement : ${String(contrat.values.nom_logement ?? '—')}`,
+            `Mois : ${String(paiement.values.mois ?? '—')}`,
+            `Date de validation : ${date || '—'}`,
+            `Mode de paiement : ${String(paiement.values.mode_paiement ?? 'Non précisé')}`,
+            `Montant reçu : ${typeof paiement.values.montant === 'number' ? paiement.values.montant.toLocaleString('fr-FR') : String(paiement.values.montant ?? 0)} FCFA`,
+          ].join('\n'),
+        }) },
+      ]);
+      return;
+    }
+    const montant = paiement.values.montant;
+    const amountText = typeof montant === 'number' ? `${montant.toLocaleString('fr-FR')} FCFA` : 'ce montant';
+    Alert.alert('Valider le loyer reçu', `Confirmez-vous avoir reçu ${amountText} ? La validation sera conservée dans l’historique.`, [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Marquer payé',
         onPress: async () => {
-          await coreService.updateRecord(paiementId, { statusKey: 'paye' });
+          await coreService.updateRecord(paiement.id, {
+            statusKey: 'paye',
+            values: { date_validation: new Date().toISOString().slice(0, 10) },
+          });
           await load();
         },
       },
@@ -91,7 +115,7 @@ export function ContratDetailScreen() {
         text: 'Marquer rejeté',
         style: 'destructive',
         onPress: async () => {
-          await coreService.updateRecord(paiementId, { statusKey: 'rejete' });
+          await coreService.updateRecord(paiement.id, { statusKey: 'rejete' });
           await load();
         },
       },
@@ -114,7 +138,7 @@ export function ContratDetailScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Contrat" showBack trailing={<IconButton icon="delete-outline" onPress={onDelete} />} />
       <ScrollView contentContainerClassName="gap-5 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         <View className="flex-row items-center justify-between">
@@ -177,7 +201,7 @@ export function ContratDetailScreen() {
                   <View key={p.id}>
                     {i > 0 && <View className="h-px bg-border" />}
                     <Pressable
-                      onPress={() => onChangePaiementStatus(p.id)}
+                      onPress={() => onChangePaiementStatus(p)}
                       className="flex-row items-center justify-between p-gutter-card active:bg-background-secondary">
                       <View className="flex-1">
                         <SectionTitleText className="text-base">{String(p.values.mois ?? '')}</SectionTitleText>

@@ -32,7 +32,7 @@ export function PaiementFormScreen() {
 
   if (!entityDefinition || !toolId) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
         <AppHeader title="Nouveau paiement" showBack />
         <View className="px-page-margin">
           <LoadingState />
@@ -60,7 +60,7 @@ export function PaiementFormScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Nouveau paiement" showBack />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
         <ScrollView contentContainerClassName="gap-4 px-page-margin pb-6" keyboardShouldPersistTaps="handled">

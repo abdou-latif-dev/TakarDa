@@ -29,7 +29,7 @@ export function LoginScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-background">
       <ScrollView contentContainerClassName="flex-grow justify-center px-page-margin py-8" keyboardShouldPersistTaps="handled">
         <View className="items-center gap-3">
           <View className="h-16 w-16 items-center justify-center rounded-lg bg-background-secondary">

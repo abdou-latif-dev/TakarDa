@@ -44,7 +44,7 @@ export function SplashView() {
   }, [opacity, translateY]);
 
   return (
-    <View className="flex-1 items-center justify-center bg-white">
+    <View className="flex-1 items-center justify-center bg-background">
       <Animated.View style={{ opacity, transform: [{ translateY }] }} className="items-center gap-4">
         <View
           className="h-32 w-32 items-center justify-center rounded-xl bg-primary-soft"

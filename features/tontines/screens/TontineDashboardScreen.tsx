@@ -39,7 +39,7 @@ export function TontineDashboardScreen() {
 
   if (summaryStatus[groupId] !== 'success' || !summary) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
         <AppHeader showBack />
         <View className="px-page-margin">
           <LoadingState />
@@ -97,21 +97,27 @@ export function TontineDashboardScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader showBack trailing={<IconButton icon="delete-outline" onPress={onDelete} disabled={deleting} />} />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         <View>
-          <DisplayText className="text-2xl">{group?.name}</DisplayText>
+          <DisplayText numberOfLines={2} className="text-2xl">{group?.name}</DisplayText>
           <BodyMdText>{summary.cycle?.label ?? 'Cycle en cours'}</BodyMdText>
         </View>
 
         <View className="flex-row gap-3">
           <SecondaryButton
+            fullWidth={false}
+            multilineLabel
+            className="flex-1 px-2"
             label="Ajouter un membre"
             icon="person-add"
             onPress={() => router.push(`/group/${groupId}/add-member`)}
           />
           <PrimaryButton
+            fullWidth={false}
+            multilineLabel
+            className="flex-1 px-2"
             label="Cotisation"
             icon="add"
             onPress={() => router.push(`/group/${groupId}/tontine/add-contribution`)}
@@ -124,18 +130,18 @@ export function TontineDashboardScreen() {
               <View className="h-10 w-10 items-center justify-center rounded-full bg-primary-soft">
                 <MaterialIcons name="sync" size={20} color={Colors.primary} />
               </View>
-              <View>
+              <View className="flex-1">
                 <LabelText>
                   Tour {summary.currentRound} / {summary.totalRounds}
                 </LabelText>
-                <HeadlineText className="text-lg">{summary.nextBeneficiary?.displayName ?? '—'}</HeadlineText>
+                <HeadlineText numberOfLines={2} className="text-lg">{summary.nextBeneficiary?.displayName ?? '—'}</HeadlineText>
               </View>
             </View>
           </View>
           <ProgressBar progress={summary.progress} />
-          <View className="flex-row gap-3">
-            <SecondaryButton label="Ordre de passage" icon="swap-vert" onPress={() => router.push(`/group/${groupId}/order`)} />
-            <PrimaryButton label="Marquer reçu" icon="check-circle" loading={advancing} onPress={onAdvanceRound} />
+          <View className="flex-row flex-wrap gap-3">
+            <SecondaryButton fullWidth={false} multilineLabel className="min-w-[48%] flex-1 px-2" label="Ordre de passage" icon="swap-vert" onPress={() => router.push(`/group/${groupId}/order`)} />
+            <PrimaryButton fullWidth={false} multilineLabel className="min-w-[48%] flex-1 px-2" label="Marquer reçu" icon="check-circle" loading={advancing} onPress={onAdvanceRound} />
           </View>
         </Card>
 
@@ -198,13 +204,19 @@ export function TontineDashboardScreen() {
           </View>
         </View>
 
-        <View className="flex-row gap-3">
+        <View className="flex-row flex-wrap gap-3">
           <SecondaryButton
+            fullWidth={false}
+            multilineLabel
+            className="min-w-[48%] flex-1 px-2"
             label="Historique"
             icon="history"
             onPress={() => router.push(`/group/${groupId}/tontine/history`)}
           />
           <SecondaryButton
+            fullWidth={false}
+            multilineLabel
+            className="min-w-[48%] flex-1 px-2"
             label="Statistiques"
             icon="bar-chart"
             onPress={() => router.push(`/group/${groupId}/tontine/stats`)}

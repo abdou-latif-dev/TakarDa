@@ -115,7 +115,7 @@ export function MesModelesScreen() {
   const isEmpty = groupsStatus !== 'loading' && formsStatus !== 'loading' && tontines.length === 0 && forms.length === 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <AppHeader
         title="Mes modèles"
         trailing={<IconButton icon="add" onPress={() => router.push('/modals/create-menu')} />}
@@ -129,6 +129,28 @@ export function MesModelesScreen() {
         </View>
       )}
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
+        <View className="gap-3">
+          <SectionHeader title="Mes outils" />
+          <View className="flex-row flex-wrap gap-3">
+            {[
+              { title: 'Immobilier', icon: 'home-work' as const, href: '/immobilier' as const },
+              { title: 'Factures', icon: 'receipt-long' as const, href: '/factures' as const },
+              { title: 'Commerce / Business', icon: 'storefront' as const, href: '/form/templates' as const },
+              { title: 'Tontines', icon: 'savings' as const, href: '/(tabs)/modeles' as const },
+            ].map((tool) => (
+              <Pressable
+                key={tool.title}
+                accessibilityRole="button"
+                onPress={() => router.push(tool.href)}
+                className="min-h-14 min-w-[47%] flex-1 flex-row items-center gap-2 rounded-xl border border-border bg-surface px-3 py-3 active:opacity-80">
+                <MaterialIcons name={tool.icon} size={20} color={Colors.primary} />
+                <LabelText className="flex-1 font-inter-semibold text-text-primary">{tool.title}</LabelText>
+                <MaterialIcons name="chevron-right" size={18} color={Colors.emptyIcon} />
+              </Pressable>
+            ))}
+          </View>
+          <LabelText>Chaque paiement reste validé manuellement par vous.</LabelText>
+        </View>
         {loading && tontines.length === 0 && forms.length === 0 && <LoadingState />}
         {hasError && <ErrorState onRetry={() => { fetchGroups(); fetchForms(); }} />}
 

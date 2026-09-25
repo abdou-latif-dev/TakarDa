@@ -91,6 +91,7 @@ export const tontineService = {
     const existingIndex = contributions.findIndex(
       (c) => c.groupId === input.groupId && c.cycleId === input.cycleId && c.memberId === input.memberId,
     );
+    const previousContribution = existingIndex >= 0 ? contributions[existingIndex] : null;
     const contribution: Contribution = {
       id: existingIndex >= 0 ? contributions[existingIndex].id : genId('ct'),
       groupId: input.groupId,
@@ -110,12 +111,17 @@ export const tontineService = {
     activityEvents.unshift({
       id: genId('a'),
       type: 'contribution_added',
-      title: 'Cotisation enregistrée',
-      description: `${member?.displayName ?? 'Un membre'} a payé ${formatFcfa(input.amount)}.`,
+      title: previousContribution ? 'Cotisation corrigée' : input.status === 'paid' ? 'Paiement de cotisation validé' : 'Cotisation enregistrée en attente',
+      description:
+        previousContribution
+          ? `Correction manuelle : ${previousContribution.status === 'paid' ? 'payé' : 'non payé'} (${formatFcfa(previousContribution.amount)}) → ${input.status === 'paid' ? 'payé' : 'non payé'} (${formatFcfa(input.amount)}).`
+          : input.status === 'paid'
+          ? `${member?.displayName ?? 'Un membre'} a payé ${formatFcfa(input.amount)}.`
+          : `Paiement de ${formatFcfa(input.amount)} enregistré comme non payé pour ${member?.displayName ?? 'un membre'}.`,
       groupId: input.groupId,
       userName: member?.displayName,
       amount: input.amount,
-      at: contribution.createdAt,
+      at: new Date().toISOString(),
     });
     return contribution;
   },

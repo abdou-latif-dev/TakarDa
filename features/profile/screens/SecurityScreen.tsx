@@ -29,7 +29,7 @@ export function SecurityScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Sécurité" showBack />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10">
         <BodyMdText>Gérez vos paramètres de sécurité pour protéger votre compte FormEase et vos données.</BodyMdText>

@@ -38,7 +38,7 @@ export function ContributionSuccessScreen() {
 
   if (!contribution) {
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center px-page-margin">
+      <SafeAreaView className="flex-1 bg-background items-center justify-center px-page-margin">
         <PrimaryButton label="Retour" onPress={() => router.replace(`/group/${groupId}/tontine`)} />
       </SafeAreaView>
     );
@@ -47,7 +47,7 @@ export function ContributionSuccessScreen() {
   const receiptText = `FormEase — Reçu de cotisation\n${group?.name ?? ''}\n${member?.displayName ?? ''} · ${formatFcfa(contribution.amount)}\nRéférence : ${contribution.reference}`;
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-background">
       <View className="flex-row items-center justify-between px-page-margin py-3">
         <BodyLgText className="font-manrope-bold text-primary">FormEase</BodyLgText>
         <IconButton icon="close" onPress={() => router.replace(`/group/${groupId}/tontine`)} />

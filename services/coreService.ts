@@ -236,25 +236,35 @@ export const coreService = {
     if (!record) throw new Error('Enregistrement introuvable.');
     const statusChanged = patch.statusKey !== undefined && patch.statusKey !== record.statusKey;
     const previousStatus = record.statusKey ?? null;
+    const valueDiff = patch.values
+      ? Object.entries(patch.values)
+          .filter(([key, value]) => JSON.stringify(record.values[key]) !== JSON.stringify(value))
+          .map(([field, to]) => ({ field, from: record.values[field] ?? null, to }))
+      : [];
     if (patch.values) record.values = { ...record.values, ...patch.values };
     if (patch.statusKey !== undefined) record.statusKey = patch.statusKey;
     record.updatedAt = new Date().toISOString();
     if (statusChanged) {
+      const definition = entityDefinitions.find((item) => item.id === record.entityDefinitionId);
+      const previousLabel = definition?.statuses?.find((status) => status.key === previousStatus)?.label ?? 'Sans statut';
+      const nextLabel = definition?.statuses?.find((status) => status.key === record.statusKey)?.label ?? record.statusKey;
       logEvent({
         toolId: record.toolId,
         entityDefinitionId: record.entityDefinitionId,
         recordId: record.id,
         type: 'status_changed',
-        summary: 'Statut modifié.',
+        summary: `Statut changé : ${previousLabel} → ${nextLabel}.`,
         diff: [{ field: 'statusKey', from: previousStatus, to: record.statusKey ?? null }],
       });
-    } else {
+    }
+    if (valueDiff.length > 0) {
       logEvent({
         toolId: record.toolId,
         entityDefinitionId: record.entityDefinitionId,
         recordId: record.id,
         type: 'record_updated',
-        summary: 'Enregistrement modifié.',
+        summary: `Enregistrement modifié (${valueDiff.length} champ${valueDiff.length > 1 ? 's' : ''}).`,
+        diff: valueDiff,
       });
     }
     return record;

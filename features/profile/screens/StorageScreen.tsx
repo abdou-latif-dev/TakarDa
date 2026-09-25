@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert, Share, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -9,6 +9,26 @@ import { LoadingState } from '@/components/ui/States';
 import { HeadlineText, BodyMdText, LabelText, BodyLgText } from '@/components/ui/Typography';
 import { Colors } from '@/constants/theme';
 import { useStorageUsageStore } from '@/store/storageUsageStore';
+import {
+  activityEvents,
+  contributions,
+  documents,
+  entityDefinitions,
+  events,
+  externalContacts,
+  forms,
+  groups,
+  memberships,
+  notifications,
+  records,
+  roleDefinitions,
+  submissions,
+  tontineCycles,
+  toolMembers,
+  tools,
+  users,
+  workflowRules,
+} from '@/services/db';
 
 const ROWS = [
   { key: 'formsCount' as const, icon: 'description' as const, label: 'Formulaires', description: 'Structures et modèles créés' },
@@ -23,8 +43,29 @@ export function StorageScreen() {
     fetchUsage();
   }, [fetchUsage]);
 
+  const exportBackup = async () => {
+    const backup = {
+      format: 'TakarDa local backup',
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      data: {
+        users, groups, memberships, tontineCycles, contributions, forms, submissions,
+        activityEvents, notifications, tools, entityDefinitions, records, toolMembers,
+        externalContacts, roleDefinitions, events, documents, workflowRules,
+      },
+    };
+    try {
+      await Share.share({
+        title: 'Sauvegarde TakarDa',
+        message: JSON.stringify(backup),
+      });
+    } catch {
+      Alert.alert('Export impossible', 'La sauvegarde n’a pas pu être partagée. Réessayez.');
+    }
+  };
+
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Stockage" showBack />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         {status === 'loading' && !usage && <LoadingState />}
@@ -61,10 +102,11 @@ export function StorageScreen() {
         )}
 
         <SecondaryButton
-          label="Gérer mon stockage"
-          icon="settings"
-          onPress={() => Alert.alert('Bientôt disponible', 'La gestion avancée du stockage arrivera avec la synchronisation cloud.')}
+          label="Exporter une sauvegarde"
+          icon="ios-share"
+          onPress={exportBackup}
         />
+        <BodyMdText className="text-center">Export JSON de vos données locales pour les conserver dans un emplacement sûr.</BodyMdText>
       </ScrollView>
     </SafeAreaView>
   );

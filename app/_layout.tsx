@@ -13,6 +13,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { vars, useColorScheme } from 'nativewind';
 import {
   useFonts,
   Manrope_400Regular,
@@ -24,6 +25,7 @@ import {
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
+import { getThemeVariables, setColorsForScheme } from '@/constants/theme';
 import { hydrateDb, startAutoPersist } from '@/services/persistence';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -41,6 +43,9 @@ const BOOT_TIMEOUT_MS = 4000;
 const DB_HYDRATE_TIMEOUT_MS = 6000;
 
 export default function RootLayout() {
+  const mode = useThemeStore((s) => s.mode);
+  const { colorScheme, setColorScheme } = useColorScheme();
+  const activeScheme = mode === 'system' ? (colorScheme ?? 'light') : mode;
   const [fontsLoaded, fontError] = useFonts({
     Manrope_400Regular,
     Manrope_500Medium,
@@ -83,13 +88,18 @@ export default function RootLayout() {
 
   useEffect(() => startAutoPersist(), []);
 
-  // Theme preference: in-memory defaults already match {mode:'light',
-  // accentKey:'default'}, so this never needs to gate `ready` the way
+  // Theme preference: the system appearance is the initial default, so this
+  // never needs to gate `ready` the way
   // dbHydrated does — it only overwrites the defaults once AsyncStorage
   // resolves, with nothing to show differently in between.
   useEffect(() => {
     useThemeStore.getState().hydrate();
   }, []);
+
+  useEffect(() => {
+    setColorScheme(mode);
+    setColorsForScheme(activeScheme);
+  }, [mode, activeScheme, setColorScheme]);
 
   useEffect(() => {
     if (fontError) console.warn('Font loading failed, continuing with system fonts:', fontError);
@@ -116,14 +126,14 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={[{ flex: 1 }, vars(getThemeVariables(activeScheme))]}>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }}>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: activeScheme === 'dark' ? '#111113' : '#FFFFFF' } }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="modals" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         </Stack>
-        <StatusBar style="dark" />
+        <StatusBar style={activeScheme === 'dark' ? 'light' : 'dark'} />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

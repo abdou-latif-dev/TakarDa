@@ -6,21 +6,16 @@
 // EntityDefinition once, idempotently. Screens then talk to coreService /
 // store/coreStore.ts directly like any other Core-backed module.
 //
-// Reviewed against the H-PAY audit (Étape 2): its CEET/TDE "calculateur"
-// splits one already-known invoice across several tenants sharing a meter —
-// a genuinely different feature (Immobilier × Factures territory, see §9 of
-// the report) that this "suivi de facture" module deliberately does not
-// absorb. H-PAY itself has no due-date, no compteur reference and no
-// justificatif for utility bills — this module already has all three, so
-// nothing was missing to port. The one real fix: StatusDefinition.color used
-// to hardcode this module's own hex value (#FF7A00), duplicating the app's
-// accent color in a domain file — now a semantic token key resolved by the
-// UI via constants/theme.ts, so it follows the theme like everything else.
+// Models the useful H-PAY bill workflow on TakarDa's Core engine: CEET/TDE
+// invoice entry, meter or equal-share allocation across active leases, then
+// owner-entered manual payment validation per tenant. No payment provider is
+// involved; the owner records what they verified in the real world.
 
 import { coreService } from './coreService';
 import type { EntityDefinition, Tool } from '@/types/entities';
 
 const FACTURE_ENTITY_KEY = 'facture';
+const RELEVE_ENTITY_KEY = 'releve';
 
 async function findFacturesTool(): Promise<Tool | null> {
   const found = await coreService.getTools({ kind: 'facture' });
@@ -28,7 +23,7 @@ async function findFacturesTool(): Promise<Tool | null> {
 }
 
 /** Idempotent — creates the Tool + EntityDefinition on first call, reuses them afterwards. */
-export async function ensureFacturesTool(): Promise<{ tool: Tool; entityDefinition: EntityDefinition }> {
+export async function ensureFacturesTool(): Promise<{ tool: Tool; entityDefinition: EntityDefinition; releveDefinition: EntityDefinition }> {
   let tool = await findFacturesTool();
   if (!tool) {
     tool = await coreService.createTool({ name: 'Factures', icon: 'receipt-long', kind: 'facture' });
@@ -46,8 +41,9 @@ export async function ensureFacturesTool(): Promise<{ tool: Tool; entityDefiniti
       isSystem: true,
       statuses: [
         { key: 'a_payer', label: 'À payer', color: 'warning', order: 0 },
-        { key: 'payee', label: 'Payée', color: 'success', isTerminal: true, order: 1 },
-        { key: 'en_retard', label: 'En retard', color: 'danger', order: 2 },
+        { key: 'partielle', label: 'Partiellement payée', color: 'warning', order: 1 },
+        { key: 'payee', label: 'Payée', color: 'success', isTerminal: true, order: 2 },
+        { key: 'en_retard', label: 'En retard', color: 'danger', order: 3 },
       ],
       fields: [
         {
@@ -62,14 +58,67 @@ export async function ensureFacturesTool(): Promise<{ tool: Tool; entityDefiniti
           ],
         },
         { key: 'reference_compteur', type: 'text', label: 'Référence / N° compteur', required: true },
+        { key: 'mois', type: 'text', label: 'Mois de facture', required: true },
+        { key: 'bien_id', type: 'text', label: 'Bien immobilier (interne)', required: false },
+        { key: 'bien_nom', type: 'text', label: 'Bien', required: false },
+        { key: 'mode_repartition', type: 'text', label: 'Mode de répartition', required: false },
+        { key: 'repartitions_json', type: 'text', label: 'Lignes de répartition (historique)', required: false },
         { key: 'client', type: 'text', label: 'Client', required: false },
         { key: 'montant', type: 'amount', label: 'Montant', required: true },
         { key: 'date_emission', type: 'date', label: "Date d'émission", required: true },
         { key: 'echeance', type: 'date', label: "Date d'échéance", required: false },
+        { key: 'mode_paiement', type: 'text', label: 'Mode de paiement (note)', required: false },
+        { key: 'date_paiement', type: 'date', label: 'Date du paiement', required: false },
+        { key: 'note', type: 'text', label: 'Note', required: false },
         { key: 'justificatif', type: 'file', label: 'Justificatif (photo ou fichier)', required: false },
       ],
     });
   }
 
-  return { tool, entityDefinition };
+  // Safe, additive migration for installations that already created the
+  // invoice definition before manual payment details were available.
+  const addedFields = [
+    { key: 'mois', type: 'text' as const, label: 'Mois de facture', required: true },
+    { key: 'bien_id', type: 'text' as const, label: 'Bien immobilier (interne)', required: false },
+    { key: 'bien_nom', type: 'text' as const, label: 'Bien', required: false },
+    { key: 'mode_repartition', type: 'text' as const, label: 'Mode de répartition', required: false },
+    { key: 'repartitions_json', type: 'text' as const, label: 'Lignes de répartition (historique)', required: false },
+    { key: 'mode_paiement', type: 'text' as const, label: 'Mode de paiement (note)', required: false },
+    { key: 'date_paiement', type: 'date' as const, label: 'Date du paiement', required: false },
+    { key: 'note', type: 'text' as const, label: 'Note', required: false },
+  ].filter((field) => !entityDefinition!.fields.some((current) => current.key === field.key));
+  if (addedFields.length) {
+    entityDefinition = await coreService.updateEntityDefinition(entityDefinition.id, {
+      fields: [...entityDefinition!.fields, ...addedFields.map((field, index) => ({ ...field, id: `legacy-${field.key}`, order: entityDefinition!.fields.length + index }))],
+    });
+  }
+  const nextStatuses = [
+    ...(entityDefinition.statuses ?? []),
+    ...(!entityDefinition.statuses?.some((status) => status.key === 'partielle')
+      ? [{ key: 'partielle', label: 'Partiellement payée', color: 'warning' as const, order: 1 }]
+      : []),
+  ];
+  if (nextStatuses.length !== (entityDefinition.statuses ?? []).length) {
+    entityDefinition = await coreService.updateEntityDefinition(entityDefinition.id, { statuses: nextStatuses });
+  }
+
+  const releveDefinition =
+    existingEntities.find((e) => e.key === RELEVE_ENTITY_KEY) ??
+    (await coreService.createEntityDefinition({
+      toolId: tool.id,
+      key: RELEVE_ENTITY_KEY,
+      label: 'Relevé de compteur',
+      labelPlural: 'Relevés de compteur',
+      icon: 'speed',
+      isSystem: true,
+      fields: [
+        { key: 'fournisseur', type: 'select', label: 'Type de compteur', required: true, options: [{ id: 'ceet', label: 'CEET' }, { id: 'tde', label: 'TDE' }, { id: 'autre', label: 'Autre' }] },
+        { key: 'mois', type: 'text', label: 'Mois (AAAA-MM)', required: true },
+        { key: 'compteur', type: 'text', label: 'Nom / repère du compteur', required: true },
+        { key: 'index', type: 'number', label: 'Index relevé', required: true },
+        { key: 'note', type: 'text', label: 'Note', required: false },
+      ],
+    }));
+
+  return { tool, entityDefinition, releveDefinition };
 }

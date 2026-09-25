@@ -12,6 +12,7 @@ interface ButtonBaseProps extends Omit<PressableProps, 'children'> {
   icon?: ComponentProps<typeof MaterialIcons>['name'];
   iconPosition?: 'left' | 'right';
   fullWidth?: boolean;
+  multilineLabel?: boolean;
 }
 
 /** h-52px pill, orange fill, white label — the app's single high-intent CTA style. */
@@ -22,6 +23,7 @@ export function PrimaryButton({
   icon,
   iconPosition = 'right',
   fullWidth = true,
+  multilineLabel = false,
   className,
   ...props
 }: ButtonBaseProps & { className?: string }) {
@@ -32,7 +34,9 @@ export function PrimaryButton({
       accessibilityState={{ disabled: isDisabled }}
       disabled={isDisabled}
       className={cn(
-        'h-[52px] flex-row items-center justify-center rounded-xl bg-primary px-6 shadow-soft-primary active:scale-[0.98]',
+        multilineLabel
+          ? 'min-h-[52px] h-auto py-2 flex-row items-center justify-center rounded-xl bg-primary px-3 shadow-soft-primary active:scale-[0.98]'
+          : 'h-[52px] flex-row items-center justify-center rounded-xl bg-primary px-6 shadow-soft-primary active:scale-[0.98]',
         fullWidth && 'w-full',
         isDisabled && 'opacity-50',
         className,
@@ -41,9 +45,9 @@ export function PrimaryButton({
       {loading ? (
         <ActivityIndicator color="#FFFFFF" />
       ) : (
-        <View className="flex-row items-center gap-2">
+        <View className="max-w-full flex-shrink flex-row items-center justify-center gap-2">
           {icon && iconPosition === 'left' && <MaterialIcons name={icon} size={20} color="#FFFFFF" />}
-          <ButtonLabelText className="text-white">{label}</ButtonLabelText>
+          <ButtonLabelText numberOfLines={multilineLabel ? 2 : undefined} className="flex-shrink text-center text-white">{label}</ButtonLabelText>
           {icon && iconPosition === 'right' && <MaterialIcons name={icon} size={20} color="#FFFFFF" />}
         </View>
       )}
@@ -59,6 +63,7 @@ export function SecondaryButton({
   icon,
   iconPosition = 'left',
   fullWidth = true,
+  multilineLabel = false,
   className,
   ...props
 }: ButtonBaseProps & { className?: string }) {
@@ -69,7 +74,9 @@ export function SecondaryButton({
       accessibilityState={{ disabled: isDisabled }}
       disabled={isDisabled}
       className={cn(
-        'h-[52px] flex-row items-center justify-center rounded-xl border border-border bg-surface px-6 active:scale-[0.98]',
+        multilineLabel
+          ? 'min-h-[52px] h-auto py-2 flex-row items-center justify-center rounded-xl border border-border bg-surface px-3 active:scale-[0.98]'
+          : 'h-[52px] flex-row items-center justify-center rounded-xl border border-border bg-surface px-6 active:scale-[0.98]',
         fullWidth && 'w-full',
         isDisabled && 'opacity-50',
         className,
@@ -78,9 +85,9 @@ export function SecondaryButton({
       {loading ? (
         <ActivityIndicator color={Colors.textPrimary} />
       ) : (
-        <View className="flex-row items-center gap-2">
+        <View className="max-w-full flex-shrink flex-row items-center justify-center gap-2">
           {icon && iconPosition === 'left' && <MaterialIcons name={icon} size={20} color={Colors.textPrimary} />}
-          <ButtonLabelText className="text-text-primary">{label}</ButtonLabelText>
+          <ButtonLabelText numberOfLines={multilineLabel ? 2 : undefined} className="flex-shrink text-center text-text-primary">{label}</ButtonLabelText>
           {icon && iconPosition === 'right' && <MaterialIcons name={icon} size={20} color={Colors.textPrimary} />}
         </View>
       )}
@@ -89,7 +96,7 @@ export function SecondaryButton({
 }
 
 /** Destructive variant — reserved for reject/delete/logout actions. */
-export function DestructiveButton({ label, loading, disabled, icon, fullWidth = true, className, ...props }: ButtonBaseProps & { className?: string }) {
+export function DestructiveButton({ label, loading, disabled, icon, fullWidth = true, multilineLabel = false, className, ...props }: ButtonBaseProps & { className?: string }) {
   const isDisabled = disabled || loading;
   return (
     <Pressable
@@ -97,7 +104,9 @@ export function DestructiveButton({ label, loading, disabled, icon, fullWidth = 
       accessibilityState={{ disabled: isDisabled }}
       disabled={isDisabled}
       className={cn(
-        'h-[52px] flex-row items-center justify-center rounded-xl bg-error px-6 active:scale-[0.98]',
+        multilineLabel
+          ? 'min-h-[52px] h-auto py-2 flex-row items-center justify-center rounded-xl bg-error px-3 active:scale-[0.98]'
+          : 'h-[52px] flex-row items-center justify-center rounded-xl bg-error px-6 active:scale-[0.98]',
         fullWidth && 'w-full',
         isDisabled && 'opacity-50',
         className,
@@ -106,9 +115,9 @@ export function DestructiveButton({ label, loading, disabled, icon, fullWidth = 
       {loading ? (
         <ActivityIndicator color="#FFFFFF" />
       ) : (
-        <View className="flex-row items-center gap-2">
+        <View className="max-w-full flex-shrink flex-row items-center justify-center gap-2">
           {icon && <MaterialIcons name={icon} size={20} color="#FFFFFF" />}
-          <ButtonLabelText className="text-white">{label}</ButtonLabelText>
+          <ButtonLabelText numberOfLines={multilineLabel ? 2 : undefined} className="flex-shrink text-center text-white">{label}</ButtonLabelText>
         </View>
       )}
     </Pressable>

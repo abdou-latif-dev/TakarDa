@@ -20,7 +20,7 @@ export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
 
   return (
     <View
-      className="flex-row border-t border-border bg-white/95"
+      className="flex-row border-t border-border bg-background/95"
       style={{ paddingBottom: Math.max(insets.bottom, 10), paddingTop: 10 }}>
       {state.routes.map((route, index) => {
         const meta = TAB_META[route.name];

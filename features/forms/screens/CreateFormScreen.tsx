@@ -39,7 +39,7 @@ export function CreateFormScreen() {
 
   if (!activeForm) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
         <AppHeader title={existingFormId ? 'Modifier le formulaire' : 'Créer un formulaire'} showBack />
         <View className="px-page-margin">
           <LoadingState />
@@ -49,7 +49,7 @@ export function CreateFormScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title={existingFormId ? 'Modifier le formulaire' : 'Créer un formulaire'} showBack />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-6" keyboardShouldPersistTaps="handled">

@@ -43,7 +43,7 @@ export function CreateActivityScreen() {
 
   if (status !== 'loading' && groups.length === 0) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
         <AppHeader title="Organiser une activité" showBack />
         <View className="px-page-margin pt-4">
           <EmptyState
@@ -59,7 +59,7 @@ export function CreateActivityScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Organiser une activité" showBack />
       <ScrollView contentContainerClassName="gap-5 px-page-margin pb-6" keyboardShouldPersistTaps="handled">
         <View className="gap-2">

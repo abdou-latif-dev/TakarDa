@@ -51,7 +51,7 @@ export function OrderScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Ordre de Réception" showBack />
       <View className="px-page-margin pt-2">
         <BodyMdText>Utilisez les flèches pour définir l&apos;ordre dans lequel les membres recevront la cagnotte.</BodyMdText>

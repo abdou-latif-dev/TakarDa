@@ -36,7 +36,7 @@ export function HomeScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10 pt-2" showsVerticalScrollIndicator={false}>
         <View className="flex-row items-center gap-3">
           <Avatar name={user?.name ?? 'Vous'} size={48} />
@@ -64,6 +64,8 @@ export function HomeScreen() {
               onPress={() => router.push('/(tabs)/modeles')}
             />
             <QuickActionCard icon="savings" title="Tontine" subtitle="Gérer une tontine" onPress={goToTontine} />
+            <QuickActionCard icon="home-work" title="Immobilier" subtitle="Biens et loyers" onPress={() => router.push('/immobilier')} />
+            <QuickActionCard icon="receipt-long" title="Facture" subtitle="Suivre un paiement" onPress={() => router.push('/factures')} />
             <QuickActionCard
               icon="dashboard-customize"
               title="Modèles"

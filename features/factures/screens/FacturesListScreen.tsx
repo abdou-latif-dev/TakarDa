@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/ui/AppHeader';
-import { IconButton } from '@/components/ui/Button';
+import { IconButton, SecondaryButton } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { SectionTitleText, LabelText } from '@/components/ui/Typography';
@@ -13,10 +13,13 @@ import type { StatusKind } from '@/constants/theme';
 import { formatFcfa, formatRelativeTime } from '@/utils/format';
 import { useCoreStore } from '@/store/coreStore';
 import { ensureFacturesTool } from '@/services/facturesService';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 
 const STATUS_MAP: Record<string, StatusKind> = {
   payee: 'paid',
   a_payer: 'pending',
+  partielle: 'pending',
   en_retard: 'late',
 };
 
@@ -34,14 +37,19 @@ export function FacturesListScreen() {
     });
   }, [fetchRecords]);
 
+  useFocusEffect(useCallback(() => {
+    if (toolId && entityDefinitionId) fetchRecords({ toolId, entityDefinitionId });
+  }, [toolId, entityDefinitionId, fetchRecords]));
+
   const key = toolId && entityDefinitionId ? `${toolId}:${entityDefinitionId}` : null;
   const list = key ? (records[key] ?? []) : [];
   const status = key ? recordsStatus[key] : 'loading';
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Factures" showBack trailing={<IconButton icon="add" onPress={() => router.push('/factures/new')} />} />
       <ScrollView contentContainerClassName="gap-3 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
+        <View className="flex-row gap-3"><View className="flex-1"><SecondaryButton label="Cahier d’index" icon="speed" onPress={() => router.push('/factures/releves')} /></View><View className="flex-1"><SecondaryButton label="Personnaliser" icon="tune" onPress={() => toolId && entityDefinitionId && router.push({ pathname: '/schema/customize' as never, params: { toolId, entityDefinitionId } })} /></View></View>
         {status === 'loading' && list.length === 0 && <LoadingState />}
         {status === 'error' && (
           <ErrorState onRetry={() => toolId && entityDefinitionId && fetchRecords({ toolId, entityDefinitionId })} />
@@ -65,11 +73,12 @@ export function FacturesListScreen() {
             </View>
             <View className="flex-1">
               <SectionTitleText className="text-base" numberOfLines={1}>
-                {String(record.values.fournisseur ?? 'Facture')} · {String(record.values.reference_compteur ?? '')}
+                {String(record.values.fournisseur ?? 'Facture')} · {String(record.values.mois ?? record.values.reference_compteur ?? '')}
               </SectionTitleText>
               <LabelText>
                 {typeof record.values.montant === 'number' ? formatFcfa(record.values.montant) : '—'} ·{' '}
-                {formatRelativeTime(record.updatedAt)}
+                {String(record.values.reference_compteur ?? formatRelativeTime(record.updatedAt))}
+                {record.values.bien_nom ? ` · ${String(record.values.bien_nom)}` : ''}
               </LabelText>
             </View>
             {record.statusKey && <StatusBadge status={STATUS_MAP[record.statusKey] ?? 'pending'} />}

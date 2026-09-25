@@ -25,7 +25,7 @@ export function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10 pt-4" showsVerticalScrollIndicator={false}>
         <View className="items-center gap-2">
           <Avatar name={user?.name ?? 'Vous'} size={112} />
@@ -55,7 +55,7 @@ export function ProfileScreen() {
           />
           <SettingsRow icon="security" label="Sécurité" onPress={() => router.push('/account/security')} />
           <SettingsRow icon="folder" label="Stockage" onPress={() => router.push('/account/storage')} />
-          <SettingsRow icon="tune" label="Paramètres" onPress={() => router.push('/notifications/settings')} />
+          <SettingsRow icon="contrast" label="Apparence" onPress={() => router.push('/account/appearance' as never)} />
         </Card>
 
         <Card>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { storage } from '@/services/storage';
 
-export type ThemeMode = 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark' | 'system';
 
 const THEME_SETTINGS_KEY = 'theme_settings';
 
@@ -10,7 +10,7 @@ interface ThemeSettings {
   accentKey: string; // 'default' today; a future "Apparence" screen would offer more
 }
 
-const DEFAULT_SETTINGS: ThemeSettings = { mode: 'light', accentKey: 'default' };
+const DEFAULT_SETTINGS: ThemeSettings = { mode: 'system', accentKey: 'default' };
 
 interface ThemeState extends ThemeSettings {
   hydrated: boolean;
@@ -19,11 +19,7 @@ interface ThemeState extends ThemeSettings {
   setAccentKey: (accentKey: string) => Promise<void>;
 }
 
-/** Persisted user theme preference. Only `default`/`light` exist today — see
- * the "Étape 2" report for why: this step's scope is the architecture (a
- * theme choice that can be read, changed and persisted), not a live
- * light/dark or multi-accent rendering pipeline, which would need NativeWind
- * CSS-variable wiring across every component and is explicitly deferred. */
+/** Persisted light/dark/system appearance preference. */
 export const useThemeStore = create<ThemeState>((set) => ({
   ...DEFAULT_SETTINGS,
   hydrated: false,

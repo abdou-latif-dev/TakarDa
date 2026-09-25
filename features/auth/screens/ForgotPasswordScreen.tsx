@@ -25,7 +25,7 @@ export function ForgotPasswordScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-background">
       <View className="px-page-margin pt-2">
         <IconButton icon="arrow-back" onPress={() => router.back()} />
       </View>

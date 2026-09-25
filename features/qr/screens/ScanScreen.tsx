@@ -84,7 +84,7 @@ export function ScanScreen() {
         </View>
 
         {notice && (
-          <View className="absolute bottom-10 left-page-margin right-page-margin gap-3 rounded-lg bg-white p-gutter-card shadow-soft">
+          <View className="absolute bottom-10 left-page-margin right-page-margin gap-3 rounded-lg bg-background p-gutter-card shadow-soft">
             <View className="flex-row items-center gap-2">
               <MaterialIcons name="error-outline" size={20} color="#BA1A1A" />
               <BodyLgText className="font-inter-semibold">{notice.title}</BodyLgText>

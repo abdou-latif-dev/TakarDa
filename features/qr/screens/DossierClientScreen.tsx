@@ -62,7 +62,7 @@ export function DossierClientScreen() {
 
   if (!activeSubmission) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
         <AppHeader showBack />
         <View className="px-page-margin">
           <LoadingState />
@@ -76,7 +76,7 @@ export function DossierClientScreen() {
   const isPending = activeSubmission.status === 'pending';
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Dossier client" showBack />
       <View className="items-center gap-2 px-page-margin pt-2">
         <Avatar name={activeSubmission.clientName} size={64} />

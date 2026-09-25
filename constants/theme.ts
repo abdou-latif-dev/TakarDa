@@ -14,7 +14,7 @@
  * instance (Factures' StatusDefinition) that used to and was fixed.
  */
 
-export const Colors = {
+const LIGHT_COLORS = {
   primary: '#171717',
   primaryDark: '#000000',
   primaryLight: '#595959',
@@ -43,7 +43,43 @@ export const Colors = {
 
   skeleton: '#EEEEEF',
   emptyIcon: '#DADADB',
-} as const;
+};
+
+const DARK_COLORS = {
+  primary: '#59595F', primaryDark: '#FFFFFF', primaryLight: '#85858D', primarySoft: '#2C2C2E',
+  background: '#111113', backgroundSecondary: '#1C1C1E', surface: '#1C1C1E',
+  surfaceContainer: '#2C2C2E', surfaceContainerHigh: '#3A3A3C', border: '#38383A',
+  textPrimary: '#F5F5F7', textSecondary: '#B0B0B5', textMuted: '#8E8E93', textOnPrimary: '#111113',
+  success: '#30D158', successContainer: '#17351F', error: '#FF453A', errorContainer: '#451D1B',
+  warning: '#FF9F0A', warningContainer: '#3E2D12', info: '#64D2FF', infoContainer: '#123143',
+  skeleton: '#2C2C2E', emptyIcon: '#636366',
+};
+
+/** Mutable runtime palette for components that need native style colors (icons, SVG, charts). */
+export const Colors = { ...LIGHT_COLORS };
+export type ColorScheme = 'light' | 'dark';
+export function setColorsForScheme(scheme: ColorScheme) {
+  Object.assign(Colors, scheme === 'dark' ? DARK_COLORS : LIGHT_COLORS);
+}
+
+const toRgb = (hex: string) => {
+  const value = Number.parseInt(hex.replace('#', ''), 16);
+  return `${(value >> 16) & 255} ${(value >> 8) & 255} ${value & 255}`;
+};
+
+/** CSS variables inherited by NativeWind classes across the complete app tree. */
+export function getThemeVariables(scheme: ColorScheme): Record<`--${string}`, string> {
+  const p = scheme === 'dark' ? DARK_COLORS : LIGHT_COLORS;
+  return {
+    '--td-primary': toRgb(p.primary), '--td-primary-dark': toRgb(p.primaryDark), '--td-primary-light': toRgb(p.primaryLight), '--td-primary-soft': toRgb(p.primarySoft),
+    '--td-background': toRgb(p.background), '--td-background-secondary': toRgb(p.backgroundSecondary), '--td-surface': toRgb(p.surface),
+    '--td-surface-container': toRgb(p.surfaceContainer), '--td-surface-container-high': toRgb(p.surfaceContainerHigh), '--td-border': toRgb(p.border),
+    '--td-text-primary': toRgb(p.textPrimary), '--td-text-secondary': toRgb(p.textSecondary), '--td-text-muted': toRgb(p.textMuted),
+    '--td-success': toRgb(p.success), '--td-success-container': toRgb(p.successContainer), '--td-error': toRgb(p.error), '--td-error-container': toRgb(p.errorContainer),
+    '--td-warning': toRgb(p.warning), '--td-warning-container': toRgb(p.warningContainer), '--td-info': toRgb(p.info), '--td-info-container': toRgb(p.infoContainer),
+    '--td-skeleton': toRgb(p.skeleton), '--td-empty-icon': toRgb(p.emptyIcon),
+  };
+}
 
 /** Explicit shape of the token architecture — `Colors` above is the "default"
  * implementation of it. Kept separate from `Colors` (rather than typing
