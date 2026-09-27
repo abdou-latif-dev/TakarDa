@@ -8,6 +8,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/Button';
 import { LabelText } from '@/components/ui/Typography';
+import { Colors } from '@/constants/theme';
 import { useAuthStore } from '@/store/authStore';
 
 function EditableRow({
@@ -63,8 +64,8 @@ export function AccountScreen() {
         <View className="items-center gap-2">
           <Pressable onPress={pickPhoto} className="relative">
             <Avatar name={name || 'Vous'} uri={avatarUri} size={96} />
-            <View className="absolute bottom-0 right-0 h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-primary">
-              <MaterialIcons name="photo-camera" size={16} color="#FFFFFF" />
+            <View className="absolute bottom-0 right-0 h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-primary">
+              <MaterialIcons name="photo-camera" size={16} color={Colors.textOnPrimary} />
             </View>
           </Pressable>
           <Pressable onPress={pickPhoto} hitSlop={8}>

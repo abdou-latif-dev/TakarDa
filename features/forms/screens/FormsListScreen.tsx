@@ -11,7 +11,6 @@ import { Colors } from '@/constants/theme';
 import { formatRelativeTime } from '@/utils/format';
 import { useFormStore } from '@/store/formStore';
 
-const FORM_TINTS = ['#FFE3CC', '#DCEEFF', '#E4F7E1', '#F3E4FF'];
 
 export function FormsListScreen() {
   const { forms, status, fetchForms } = useFormStore();
@@ -46,9 +45,7 @@ export function FormsListScreen() {
                 key={form.id}
                 onPress={() => router.push(`/form/${form.id}/preview`)}
                 className={`flex-row items-center gap-3 py-3 ${i < forms.length - 1 ? 'border-b border-border' : ''}`}>
-                <View
-                  className="h-12 w-12 items-center justify-center rounded-md"
-                  style={{ backgroundColor: FORM_TINTS[i % FORM_TINTS.length] }}>
+                <View className="h-12 w-12 items-center justify-center rounded-md bg-surface-container">
                   <MaterialIcons name="assignment" size={20} color={Colors.textPrimary} />
                 </View>
                 <View className="flex-1">

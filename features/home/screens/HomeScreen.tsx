@@ -20,7 +20,7 @@ export function HomeScreen() {
   const [search, setSearch] = useState('');
 
   const { events, status: activityStatus, fetch: fetchActivity } = useActivityStore();
-  const { groups, fetchGroups } = useGroupStore();
+  const { fetchGroups } = useGroupStore();
   const { unreadCount, fetch: fetchNotifications } = useNotificationStore();
 
   useEffect(() => {
@@ -28,12 +28,6 @@ export function HomeScreen() {
     fetchGroups();
     fetchNotifications();
   }, [fetchActivity, fetchGroups, fetchNotifications]);
-
-  const goToTontine = () => {
-    const tontine = groups.find((g) => g.kind === 'tontine');
-    if (tontine) router.push(`/group/${tontine.id}/tontine`);
-    else router.push('/tontine/create');
-  };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -58,19 +52,22 @@ export function HomeScreen() {
           <SectionHeader title="Actions rapides" />
           <View className="flex-row flex-wrap gap-3">
             <QuickActionCard
-              icon="assignment"
-              title="Formulaire"
-              subtitle="Collecter des infos"
-              onPress={() => router.push('/(tabs)/modeles')}
+              icon="home-work"
+              title="Immobilier"
+              subtitle="Biens, contrats, paiements"
+              onPress={() => router.push('/immobilier')}
             />
-            <QuickActionCard icon="savings" title="Tontine" subtitle="Gérer une tontine" onPress={goToTontine} />
-            <QuickActionCard icon="home-work" title="Immobilier" subtitle="Biens et loyers" onPress={() => router.push('/immobilier')} />
-            <QuickActionCard icon="receipt-long" title="Facture" subtitle="Suivre un paiement" onPress={() => router.push('/factures')} />
+            <QuickActionCard
+              icon="receipt-long"
+              title="Factures"
+              subtitle="CEET, TDE et suivi"
+              onPress={() => router.push('/factures')}
+            />
             <QuickActionCard
               icon="dashboard-customize"
               title="Modèles"
-              subtitle="Bibliothèque de formulaires"
-              onPress={() => router.push('/form/templates')}
+              subtitle="Tontines et formulaires"
+              onPress={() => router.push('/(tabs)/modeles')}
             />
             <QuickActionCard
               icon="qr-code-scanner"

@@ -40,10 +40,10 @@ export function ProfileScreen() {
         </View>
 
         <Card className="gap-1">
+          <SettingsRow icon="home-work" label="Immobilier" onPress={() => router.push('/immobilier')} />
+          <SettingsRow icon="receipt-long" label="Factures" onPress={() => router.push('/factures')} />
           <SettingsRow icon="person-outline" label="Mon compte" onPress={() => router.push('/account')} />
           <SettingsRow icon="dashboard-customize" label="Mes modèles" onPress={() => router.push('/(tabs)/modeles')} />
-          <SettingsRow icon="home-work" label="Immobilier (bêta)" onPress={() => router.push('/immobilier')} />
-          <SettingsRow icon="receipt-long" label="Factures (bêta)" onPress={() => router.push('/factures')} />
           <SettingsRow icon="bar-chart" label="Statistiques" onPress={() => router.push('/(tabs)/statistiques')} />
         </Card>
 
@@ -55,7 +55,9 @@ export function ProfileScreen() {
           />
           <SettingsRow icon="security" label="Sécurité" onPress={() => router.push('/account/security')} />
           <SettingsRow icon="folder" label="Stockage" onPress={() => router.push('/account/storage')} />
-          <SettingsRow icon="contrast" label="Apparence" onPress={() => router.push('/account/appearance' as never)} />
+          {/* Étape 4B — masquée temporairement : retour à un seul thème clair
+              pendant la refonte du design. L'écran /account/appearance et le
+              store existent toujours, juste plus accessibles depuis ici. */}
         </Card>
 
         <Card>

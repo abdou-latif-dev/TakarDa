@@ -25,7 +25,7 @@ import {
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
-import { getThemeVariables, setColorsForScheme } from '@/constants/theme';
+import { getThemeVariables, setColorsForScheme, LIGHT_COLORS, DARK_COLORS } from '@/constants/theme';
 import { hydrateDb, startAutoPersist } from '@/services/persistence';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -44,8 +44,20 @@ const DB_HYDRATE_TIMEOUT_MS = 6000;
 
 export default function RootLayout() {
   const mode = useThemeStore((s) => s.mode);
-  const { colorScheme, setColorScheme } = useColorScheme();
-  const activeScheme = mode === 'system' ? (colorScheme ?? 'light') : mode;
+  const { setColorScheme } = useColorScheme();
+  // Étape 4B — le sélecteur Clair/Sombre/Système est temporairement désactivé
+  // pendant la refonte du design (retour à un seul thème clair, voir le
+  // rapport de l'Étape 4B). Rien n'est supprimé : `mode` reste lu et persisté
+  // normalement (store/themeStore.ts), setColorScheme(mode) continue de
+  // tourner sans effet visible tant qu'`activeScheme` reste figé ici. Pour
+  // réactiver plus tard : remplacer la ligne ci-dessous par
+  // `mode === 'system' ? (useColorScheme().colorScheme ?? 'light') : mode`
+  // et remettre l'entrée "Apparence" dans ProfileScreen.tsx.
+  // `(true as boolean) ? 'light' : 'dark'` (not a bare `'light'` literal) so
+  // TypeScript keeps treating `activeScheme` as the full 'light' | 'dark'
+  // union below — a bare literal here would narrow every later
+  // `activeScheme === 'dark'` comparison to "always false" and fail the build.
+  const activeScheme: 'light' | 'dark' = (true as boolean) ? 'light' : 'dark';
   const [fontsLoaded, fontError] = useFonts({
     Manrope_400Regular,
     Manrope_500Medium,
@@ -96,10 +108,23 @@ export default function RootLayout() {
     useThemeStore.getState().hydrate();
   }, []);
 
+  // Tells NativeWind which scheme to force (or 'system' to release any
+  // override and follow the OS again) — an imperative call, appropriate in an
+  // effect since it's NativeWind's own API for changing its internal state.
   useEffect(() => {
     setColorScheme(mode);
-    setColorsForScheme(activeScheme);
-  }, [mode, activeScheme, setColorScheme]);
+  }, [mode, setColorScheme]);
+
+  // Mutates the `Colors` singleton (see constants/theme.ts's header comment on
+  // it) SYNCHRONOUSLY in the render body, not in a useEffect. This was the
+  // actual bug behind Étape 4A's "dark mode isn't coherent" report: mutating
+  // it post-render meant every component reading `Colors.X` directly (icons,
+  // SVG props, shadow colors — anything a NativeWind className can't express)
+  // kept showing the previous scheme's colors until some unrelated re-render
+  // happened to occur afterwards. Calling it here, before returning JSX, means
+  // it's always current by the time this render's whole subtree (the entire
+  // app, since this is the root) reads it — same render pass, no lag.
+  setColorsForScheme(activeScheme);
 
   useEffect(() => {
     if (fontError) console.warn('Font loading failed, continuing with system fonts:', fontError);
@@ -128,7 +153,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={[{ flex: 1 }, vars(getThemeVariables(activeScheme))]}>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: activeScheme === 'dark' ? '#111113' : '#FFFFFF' } }}>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: activeScheme === 'dark' ? DARK_COLORS.background : LIGHT_COLORS.background } }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="modals" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />

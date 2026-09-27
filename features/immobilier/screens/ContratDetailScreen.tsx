@@ -15,13 +15,14 @@ import { ensureImmobilierTool, computeContratLateness } from '@/services/immobil
 import { useCoreStore } from '@/store/coreStore';
 import type { CoreEvent, EntityDefinition, FieldValue, RecordItem } from '@/types/entities';
 
-const LATENESS_TONE: Record<string, string> = {
-  a_jour: Colors.success,
-  retard: Colors.error,
-  sans_paiement: Colors.textMuted,
-};
-
 export function ContratDetailScreen() {
+  // Computed inside the component, not at module scope — see the Étape 4A
+  // theme audit / BienDetailScreen.tsx for why.
+  const LATENESS_TONE: Record<string, string> = {
+    a_jour: Colors.success,
+    retard: Colors.error,
+    sans_paiement: Colors.textMuted,
+  };
   const { contratId } = useLocalSearchParams<{ contratId: string }>();
   const [toolId, setToolId] = useState<string | null>(null);
   const [entityDefinition, setEntityDefinition] = useState<EntityDefinition | null>(null);

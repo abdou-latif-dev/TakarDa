@@ -4,8 +4,8 @@
     {
       "name": "formease-web",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["expo", "start", "--web", "--port", "8199"],
-      "port": 8199
+      "runtimeArgs": ["expo", "start", "--web", "--port", "8342"],
+      "port": 8342
     }
   ]
 }

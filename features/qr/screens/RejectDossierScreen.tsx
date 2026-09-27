@@ -69,7 +69,7 @@ export function RejectDossierScreen() {
                     backgroundColor: selected ? Colors.errorContainer : Colors.surface,
                   }}>
                   <MaterialIcons name={r.icon} size={18} color={selected ? Colors.error : Colors.textSecondary} />
-                  <LabelText style={{ color: selected ? '#93000A' : Colors.textPrimary }} className="flex-1">
+                  <LabelText style={{ color: selected ? Colors.error : Colors.textPrimary }} className="flex-1">
                     {r.label}
                   </LabelText>
                 </Pressable>

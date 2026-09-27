@@ -12,21 +12,28 @@ import { Colors } from '@/constants/theme';
 import { formatFcfa } from '@/utils/format';
 import { coreService } from '@/services/coreService';
 import { ensureImmobilierTool, computeContratLateness } from '@/services/immobilierService';
+import { ensureFacturesTool } from '@/services/facturesService';
 import type { RecordItem } from '@/types/entities';
 
-const LATENESS_TONE: Record<string, string> = {
-  a_jour: Colors.success,
-  retard: Colors.error,
-  sans_paiement: Colors.textMuted,
-};
+const FOURNISSEUR_LABEL: Record<string, string> = { ceet: 'CEET', tde: 'TDE', autre: 'Autre' };
+const FACTURE_PARTAGEE_STATUS_LABEL: Record<string, string> = { a_payer: 'À payer', partielle: 'Partielle', payee: 'Payée' };
 
 export function BienDetailScreen() {
+  // Computed inside the component, not at module scope — a frozen
+  // module-level object here would capture whatever Colors.X was at import
+  // time and never update again for dark mode (see the Étape 4A theme audit).
+  const LATENESS_TONE: Record<string, string> = {
+    a_jour: Colors.success,
+    retard: Colors.error,
+    sans_paiement: Colors.textMuted,
+  };
   const { bienId } = useLocalSearchParams<{ bienId: string }>();
   const [toolId, setToolId] = useState<string | null>(null);
   const [bien, setBien] = useState<RecordItem | null>(null);
   const [contrats, setContrats] = useState<RecordItem[]>([]);
   const [paiements, setPaiements] = useState<RecordItem[]>([]);
   const [depenses, setDepenses] = useState<RecordItem[]>([]);
+  const [facturesPartagees, setFacturesPartagees] = useState<RecordItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
@@ -40,6 +47,11 @@ export function BienDetailScreen() {
     setPaiements(allPaiements);
     const allDepenses = await coreService.getRecords({ toolId: tool.id, entityDefinitionId: depense.id });
     setDepenses(allDepenses.filter((d) => d.values.bien === bienId));
+    // Le moteur de répartition CEET/TDE vit dans le Tool Factures (voir
+    // services/utilityBillingService.ts), partagé avec le module Factures.
+    const factures = await ensureFacturesTool();
+    const allFacturesPartagees = await coreService.getRecords({ toolId: factures.tool.id, entityDefinitionId: factures.facturePartageeDefinition.id });
+    setFacturesPartagees(allFacturesPartagees.filter((f) => f.values.bien === bienId));
     setLoading(false);
   };
 
@@ -50,12 +62,19 @@ export function BienDetailScreen() {
 
   const onDeleteBien = () => {
     if (!toolId) return;
-    Alert.alert('Supprimer ce bien', 'Le bien et ses contrats/dépenses seront définitivement supprimés. Continuer ?', [
+    Alert.alert('Supprimer ce bien', 'Le bien, ses contrats, dépenses et factures partagées seront définitivement supprimés. Continuer ?', [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Supprimer',
         style: 'destructive',
         onPress: async () => {
+          const contratIds = new Set(contrats.map((c) => c.id));
+          const factures = await ensureFacturesTool();
+          const allReleves = await coreService.getRecords({ toolId: factures.tool.id, entityDefinitionId: factures.releveDefinition.id });
+          for (const r of allReleves) if (r.values.participant_type === 'contrat' && contratIds.has(String(r.values.participant_id))) await coreService.deleteRecord(r.id);
+          const allParts = await coreService.getRecords({ toolId: factures.tool.id, entityDefinitionId: factures.partLocataireDefinition.id });
+          for (const p of allParts) if (facturesPartagees.some((f) => f.id === p.values.facture_partagee)) await coreService.deleteRecord(p.id);
+          for (const f of facturesPartagees) await coreService.deleteRecord(f.id);
           for (const c of contrats) await coreService.deleteRecord(c.id);
           for (const d of depenses) await coreService.deleteRecord(d.id);
           await coreService.deleteRecord(bienId);
@@ -145,6 +164,32 @@ export function BienDetailScreen() {
                 <LabelText className="font-inter-semibold text-text-primary">{formatFcfa(totalDepenses)}</LabelText>
               </View>
             </Card>
+          )}
+        </View>
+
+        <View className="gap-3">
+          <SectionHeader title="Factures partagées" action="Ajouter" onAction={() => router.push(`/immobilier/${bienId}/facture-utility-new`)} />
+          {facturesPartagees.length === 0 ? (
+            <EmptyState compact icon="bolt" title="Aucune facture partagée" description="Répartissez une facture CEET/TDE entre les locataires de ce bien." />
+          ) : (
+            <View className="gap-3">
+              {facturesPartagees.map((f) => (
+                <Pressable
+                  key={f.id}
+                  onPress={() => router.push(`/immobilier/facture-utility/${f.id}`)}
+                  className="gap-2 rounded-xl border border-border bg-surface p-gutter-card shadow-soft active:opacity-90">
+                  <View className="flex-row items-center justify-between">
+                    <SectionTitleText numberOfLines={1}>
+                      {FOURNISSEUR_LABEL[String(f.values.fournisseur)] ?? String(f.values.fournisseur ?? '')} · {String(f.values.mois ?? '')}
+                    </SectionTitleText>
+                    <LabelText className="font-inter-semibold" style={{ color: f.statusKey === 'payee' ? Colors.success : Colors.warning }}>
+                      {FACTURE_PARTAGEE_STATUS_LABEL[f.statusKey ?? ''] ?? f.statusKey}
+                    </LabelText>
+                  </View>
+                  <LabelText>{typeof f.values.montant_total === 'number' ? formatFcfa(f.values.montant_total) : '—'}</LabelText>
+                </Pressable>
+              ))}
+            </View>
           )}
         </View>
       </ScrollView>

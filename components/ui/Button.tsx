@@ -43,12 +43,12 @@ export function PrimaryButton({
       )}
       {...props}>
       {loading ? (
-        <ActivityIndicator color="#FFFFFF" />
+        <ActivityIndicator color={Colors.textOnPrimary} />
       ) : (
         <View className="max-w-full flex-shrink flex-row items-center justify-center gap-2">
-          {icon && iconPosition === 'left' && <MaterialIcons name={icon} size={20} color="#FFFFFF" />}
-          <ButtonLabelText numberOfLines={multilineLabel ? 2 : undefined} className="flex-shrink text-center text-white">{label}</ButtonLabelText>
-          {icon && iconPosition === 'right' && <MaterialIcons name={icon} size={20} color="#FFFFFF" />}
+          {icon && iconPosition === 'left' && <MaterialIcons name={icon} size={20} color={Colors.textOnPrimary} />}
+          <ButtonLabelText numberOfLines={multilineLabel ? 2 : undefined} className="flex-shrink text-center" style={{ color: Colors.textOnPrimary }}>{label}</ButtonLabelText>
+          {icon && iconPosition === 'right' && <MaterialIcons name={icon} size={20} color={Colors.textOnPrimary} />}
         </View>
       )}
     </Pressable>

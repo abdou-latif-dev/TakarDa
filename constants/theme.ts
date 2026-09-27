@@ -14,7 +14,7 @@
  * instance (Factures' StatusDefinition) that used to and was fixed.
  */
 
-const LIGHT_COLORS = {
+export const LIGHT_COLORS = {
   primary: '#171717',
   primaryDark: '#000000',
   primaryLight: '#595959',
@@ -45,7 +45,7 @@ const LIGHT_COLORS = {
   emptyIcon: '#DADADB',
 };
 
-const DARK_COLORS = {
+export const DARK_COLORS = {
   primary: '#59595F', primaryDark: '#FFFFFF', primaryLight: '#85858D', primarySoft: '#2C2C2E',
   background: '#111113', backgroundSecondary: '#1C1C1E', surface: '#1C1C1E',
   surfaceContainer: '#2C2C2E', surfaceContainerHigh: '#3A3A3C', border: '#38383A',
@@ -55,7 +55,22 @@ const DARK_COLORS = {
   skeleton: '#2C2C2E', emptyIcon: '#636366',
 };
 
-/** Mutable runtime palette for components that need native style colors (icons, SVG, charts). */
+/** Mutable runtime palette for components that need native style colors (icons,
+ * SVG, shadow colors, Stack screen options) — anything a NativeWind className
+ * can't express, so it can't pick up the `--td-*` CSS variables the way
+ * `bg-background`/`text-text-primary`/etc. do.
+ *
+ * IMPORTANT — this object is mutated in place, not replaced (existing code
+ * holds a reference to `Colors` itself, e.g. `import { Colors } from
+ * '@/constants/theme'` at module scope), so mutating it does NOT by itself
+ * trigger a React re-render anywhere. It only reads correctly when
+ * `setColorsForScheme` runs SYNCHRONOUSLY as part of the same render pass
+ * that reacts to a scheme change — see app/_layout.tsx's `RootLayout`, which
+ * calls it directly in the render body (not inside a `useEffect`) for exactly
+ * this reason. Calling it from a `useEffect` was the root cause of Étape 4A's
+ * dark-mode incoherence bug: colors would only refresh a render late, so a
+ * component could keep showing the previous scheme's colors until something
+ * unrelated happened to re-render it. */
 export const Colors = { ...LIGHT_COLORS };
 export type ColorScheme = 'light' | 'dark';
 export function setColorsForScheme(scheme: ColorScheme) {
@@ -101,21 +116,28 @@ export interface ThemeTokens {
   danger: string;
 }
 
-export const defaultTheme: ThemeTokens = {
-  background: Colors.background,
-  backgroundSecondary: Colors.backgroundSecondary,
-  surface: Colors.surface,
-  surfaceContainer: Colors.surfaceContainer,
-  border: Colors.border,
-  textPrimary: Colors.textPrimary,
-  textSecondary: Colors.textSecondary,
-  accent: Colors.primary,
-  accentDark: Colors.primaryDark,
-  accentSoft: Colors.primarySoft,
-  success: Colors.success,
-  warning: Colors.warning,
-  danger: Colors.error,
-};
+/** No consumer yet (verified during the Étape 4A theme audit) — kept as a
+ * function of `scheme`, not a frozen object computed once at import time,
+ * specifically so a future consumer can't silently inherit the same
+ * always-light bug `StatusColors` had before this audit. */
+export function getDefaultTheme(scheme: ColorScheme): ThemeTokens {
+  const p = scheme === 'dark' ? DARK_COLORS : LIGHT_COLORS;
+  return {
+    background: p.background,
+    backgroundSecondary: p.backgroundSecondary,
+    surface: p.surface,
+    surfaceContainer: p.surfaceContainer,
+    border: p.border,
+    textPrimary: p.textPrimary,
+    textSecondary: p.textSecondary,
+    accent: p.primary,
+    accentDark: p.primaryDark,
+    accentSoft: p.primarySoft,
+    success: p.success,
+    warning: p.warning,
+    danger: p.error,
+  };
+}
 
 /** Semantic keys a domain service can put on a StatusDefinition.color instead
  * of a raw hex — resolved against the live theme by the UI. Nothing renders
@@ -169,6 +191,13 @@ export const Spacing = {
   touchTarget: 44,
 } as const;
 
+// Verified during the Étape 4A theme audit: no consumer anywhere in the app
+// (every screen uses the equivalent `shadow-soft`/`shadow-soft-primary`
+// NativeWind classes from tailwind.config.js instead, which are the live,
+// CSS-variable-driven, theme-reactive ones). Left as dead code rather than
+// reworked, to keep this pass scoped to the theme's real bugs — `softPrimary`
+// below would have the exact same frozen-at-import-time bug as the old
+// `StatusColors` if anything ever started reading it.
 export const Shadows = {
   soft: {
     shadowColor: '#000000',
@@ -188,12 +217,47 @@ export const Shadows = {
 
 export type StatusKind = 'paid' | 'pending' | 'late' | 'active' | 'inactive' | 'validated' | 'rejected';
 
-export const StatusColors: Record<StatusKind, { bg: string; text: string; label: string }> = {
-  paid: { bg: Colors.successContainer, text: '#137333', label: 'Payé' },
-  pending: { bg: Colors.surfaceContainer, text: Colors.textSecondary, label: 'En attente' },
-  late: { bg: Colors.errorContainer, text: '#93000A', label: 'En retard' },
-  active: { bg: Colors.primary, text: Colors.textOnPrimary, label: 'Actif' },
-  inactive: { bg: Colors.surfaceContainer, text: Colors.textSecondary, label: 'Inactif' },
-  validated: { bg: Colors.successContainer, text: '#137333', label: 'Validé' },
-  rejected: { bg: Colors.errorContainer, text: '#93000A', label: 'Rejeté' },
+// `text` here is a text-on-container color, chosen for contrast against that
+// state's `bg` — never the same value for light and dark (a dark-green text on
+// a pale-green light background needs to become a pale-green text on a
+// dark-green dark background, not stay dark-on-dark). These dark-mode values
+// were validated in components/ui/StatusBadge.tsx before this audit folded
+// them in here as the single source — StatusBadge no longer keeps its own copy.
+const STATUS_PALETTE: Record<'light' | 'dark', Record<StatusKind, { bg: string; text: string }>> = {
+  light: {
+    paid: { bg: LIGHT_COLORS.successContainer, text: '#137333' },
+    pending: { bg: LIGHT_COLORS.surfaceContainer, text: LIGHT_COLORS.textSecondary },
+    late: { bg: LIGHT_COLORS.errorContainer, text: '#93000A' },
+    active: { bg: LIGHT_COLORS.primary, text: LIGHT_COLORS.textOnPrimary },
+    inactive: { bg: LIGHT_COLORS.surfaceContainer, text: LIGHT_COLORS.textSecondary },
+    validated: { bg: LIGHT_COLORS.successContainer, text: '#137333' },
+    rejected: { bg: LIGHT_COLORS.errorContainer, text: '#93000A' },
+  },
+  dark: {
+    paid: { bg: DARK_COLORS.successContainer, text: '#8BE3A2' },
+    pending: { bg: '#38383A', text: '#D1D1D6' },
+    late: { bg: DARK_COLORS.errorContainer, text: '#FF8A80' },
+    active: { bg: DARK_COLORS.primary, text: DARK_COLORS.textOnPrimary },
+    inactive: { bg: '#38383A', text: '#D1D1D6' },
+    validated: { bg: DARK_COLORS.successContainer, text: '#8BE3A2' },
+    rejected: { bg: DARK_COLORS.errorContainer, text: '#FF8A80' },
+  },
 };
+
+const STATUS_LABELS: Record<StatusKind, string> = {
+  paid: 'Payé', pending: 'En attente', late: 'En retard', active: 'Actif',
+  inactive: 'Inactif', validated: 'Validé', rejected: 'Rejeté',
+};
+
+/** Was a frozen `StatusColors` object computed once at import time — always
+ * light, forever, even in dark mode (a real bug found during the Étape 4A
+ * theme audit). Now a function of the actual scheme, the same shape as
+ * `getThemeVariables`/`getDefaultTheme`. */
+export function getStatusColors(scheme: ColorScheme): Record<StatusKind, { bg: string; text: string; label: string }> {
+  const palette = STATUS_PALETTE[scheme];
+  const result = {} as Record<StatusKind, { bg: string; text: string; label: string }>;
+  (Object.keys(STATUS_LABELS) as StatusKind[]).forEach((key) => {
+    result[key] = { ...palette[key], label: STATUS_LABELS[key] };
+  });
+  return result;
+}

@@ -66,8 +66,13 @@ module.exports = {
         touch: '44px',
       },
       boxShadow: {
+        // Neutral black — reads reasonably in both themes without needing a
+        // CSS variable (kept static on purpose; see the Étape 4A theme audit).
         soft: '0px 4px 12px rgba(0,0,0,0.05)',
-        'soft-primary': '0px 4px 12px rgba(23,23,23,0.18)',
+        // Was hardcoded to the LIGHT primary's RGB (23,23,23) — in dark mode
+        // the accent becomes near-white, so this stayed dark-tinted forever.
+        // Now follows --td-primary like every other accent-based color.
+        'soft-primary': '0px 4px 12px rgb(var(--td-primary) / 0.18)',
       },
     },
   },

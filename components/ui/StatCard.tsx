@@ -28,15 +28,15 @@ export function StatCard({ icon, label, value, trend, className }: StatCardProps
           <View
             className={cn(
               'flex-row items-center gap-0.5 rounded-full px-2 py-0.5',
-              trendPositive && 'bg-info-container',
+              trendPositive && 'bg-success-container',
               trendNegative && 'bg-error-container',
             )}>
             <MaterialIcons
               name={trendPositive ? 'trending-up' : 'trending-down'}
               size={12}
-              color={trendPositive ? Colors.info : Colors.error}
+              color={trendPositive ? Colors.success : Colors.error}
             />
-            <LabelText className={cn('font-inter-semibold', trendPositive ? 'text-info' : 'text-error')}>
+            <LabelText className={cn('font-inter-semibold', trendPositive ? 'text-success' : 'text-error')}>
               {Math.abs(trend)}%
             </LabelText>
           </View>

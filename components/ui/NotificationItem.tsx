@@ -14,14 +14,15 @@ const NOTIF_ICON: Record<NotificationType, ComponentProps<typeof MaterialIcons>[
   system: 'info',
 };
 
-const NOTIF_TINT: Record<NotificationType, { bg: string; fg: string }> = {
-  contribution_due: { bg: '#FFDAD6', fg: '#BA1A1A' },
-  form_validated: { bg: '#F0F0F2', fg: Colors.textSecondary },
-  member_joined: { bg: '#CDE5FF', fg: Colors.info },
-  system: { bg: '#F0F0F2', fg: Colors.textSecondary },
-};
-
 export function NotificationItem({ notification, onPress }: { notification: AppNotification; onPress?: () => void }) {
+  // Computed inside the component, not at module scope — see ActivityItem.tsx
+  // for why a frozen module-level object here would break dark mode.
+  const NOTIF_TINT: Record<NotificationType, { bg: string; fg: string }> = {
+    contribution_due: { bg: Colors.errorContainer, fg: Colors.error },
+    form_validated: { bg: Colors.surfaceContainer, fg: Colors.textSecondary },
+    member_joined: { bg: Colors.surfaceContainer, fg: Colors.textSecondary },
+    system: { bg: Colors.surfaceContainer, fg: Colors.textSecondary },
+  };
   const tint = NOTIF_TINT[notification.type];
   return (
     <Pressable onPress={onPress} className={cn('flex-row items-start gap-3 py-4', !notification.read && 'opacity-100')}>

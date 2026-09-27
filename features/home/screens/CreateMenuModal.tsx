@@ -6,6 +6,8 @@ import { SectionTitleText, BodyMdText } from '@/components/ui/Typography';
 import { Colors } from '@/constants/theme';
 
 const OPTIONS = [
+  { icon: 'home-work' as const, title: 'Bien immobilier', description: 'Ajouter un bien à gérer', href: '/immobilier/new' as const },
+  { icon: 'receipt-long' as const, title: 'Facture', description: 'CEET, TDE ou autre facture', href: '/factures/new' as const },
   { icon: 'savings' as const, title: 'Tontine', description: 'Gérer des cotisations', href: '/tontine/create' as const },
   { icon: 'home-work' as const, title: 'Immobilier', description: 'Gérer un bien et les loyers', href: '/immobilier' as const },
   { icon: 'receipt-long' as const, title: 'Facture', description: 'Suivre et valider un paiement', href: '/factures/new' as const },

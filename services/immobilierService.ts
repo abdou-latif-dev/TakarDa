@@ -173,6 +173,12 @@ export async function ensureImmobilierTool(): Promise<ImmobilierEntities> {
     });
   }
 
+  // Étape 4 — la répartition de factures CEET/TDE partagées (relevé/facture_partagee/
+  // part_locataire) n'est plus provisionnée ici. Elle vit désormais dans le Tool
+  // Factures (services/facturesService.ts + services/utilityBillingService.ts) pour
+  // rester un moteur unique, utilisable aussi bien depuis Immobilier (avec bien/contrat)
+  // que depuis Factures seul (sans bien). Voir le rapport de fusion Étape 4.
+
   const existingRoles = await coreService.getRoleDefinitions(tool.id);
   const locataireRole =
     existingRoles.find((r) => r.key === LOCATAIRE_ROLE_KEY) ??

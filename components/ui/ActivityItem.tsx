@@ -25,26 +25,29 @@ const ACTIVITY_ICON: Record<ActivityType, ComponentProps<typeof MaterialIcons>['
   tontine_deleted: 'delete-outline',
 };
 
-const ACTIVITY_TINT: Record<ActivityType, string> = {
-  submission_validated: '#2E7D32',
-  submission_rejected: '#BA1A1A',
-  contribution_added: Colors.primary,
-  member_joined: Colors.info,
-  member_invited: Colors.info,
-  form_submitted: Colors.primary,
-  form_created: Colors.primary,
-  form_updated: Colors.info,
-  qr_scanned: Colors.primary,
-  group_created: Colors.primary,
-  activity_created: Colors.info,
-  order_updated: Colors.info,
-  cycle_completed: Colors.success,
-  form_deleted: Colors.error,
-  tontine_deleted: Colors.error,
-};
-
 /** Timeline row: tinted icon circle, title + description, relative timestamp, optional amount. */
 export function ActivityItem({ event, isLast }: { event: ActivityEvent; isLast?: boolean }) {
+  // Computed inside the component (not a module-level const) so it re-reads
+  // `Colors` fresh every render — a module-level object literal would
+  // capture whatever `Colors.X` happened to be at import time and freeze
+  // there forever, the same bug `StatusColors` had before the Étape 4A audit.
+  const ACTIVITY_TINT: Record<ActivityType, string> = {
+    submission_validated: Colors.success,
+    submission_rejected: Colors.error,
+    contribution_added: Colors.primary,
+    member_joined: Colors.textSecondary,
+    member_invited: Colors.textSecondary,
+    form_submitted: Colors.primary,
+    form_created: Colors.primary,
+    form_updated: Colors.textSecondary,
+    qr_scanned: Colors.primary,
+    group_created: Colors.primary,
+    activity_created: Colors.textSecondary,
+    order_updated: Colors.textSecondary,
+    cycle_completed: Colors.success,
+    form_deleted: Colors.error,
+    tontine_deleted: Colors.error,
+  };
   const tint = ACTIVITY_TINT[event.type];
   return (
     <View className="flex-row gap-3">

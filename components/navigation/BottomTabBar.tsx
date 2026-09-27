@@ -43,7 +43,7 @@ export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
               <Pressable
                 onPress={onPress}
                 className="-mt-7 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-soft-primary active:scale-95">
-                <MaterialIcons name="add" size={28} color="#FFFFFF" />
+                <MaterialIcons name="add" size={28} color={Colors.textOnPrimary} />
               </Pressable>
             </View>
           );

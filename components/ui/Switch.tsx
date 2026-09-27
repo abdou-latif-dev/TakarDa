@@ -15,7 +15,12 @@ export function Switch({ value, onValueChange }: { value: boolean; onValueChange
     Animated.timing(progress, { toValue: value ? 1 : 0, duration: 150, useNativeDriver: false }).start();
   }, [value, progress]);
 
-  const trackColor = progress.interpolate({ inputRange: [0, 1], outputRange: ['#E5E5EA', Colors.primary] });
+  // Colors.surfaceContainerHigh (not a hardcoded gray) so the "off" track
+  // follows the current theme instead of staying light-gray forever in dark
+  // mode — Colors is kept in sync with the active scheme by app/_layout.tsx,
+  // so re-reading it on every render (interpolate() is cheap) is enough,
+  // no extra subscription needed here.
+  const trackColor = progress.interpolate({ inputRange: [0, 1], outputRange: [Colors.surfaceContainerHigh, Colors.primary] });
   const knobTranslate = progress.interpolate({ inputRange: [0, 1], outputRange: [2, 20] });
 
   return (

@@ -61,7 +61,7 @@ export function FormStatsScreen() {
           <SectionTitleText className="text-base">Répartition</SectionTitleText>
           {[
             { label: 'Validées', value: stats.validated, color: Colors.primary },
-            { label: 'En attente', value: stats.pending, color: Colors.info },
+            { label: 'En attente', value: stats.pending, color: Colors.warning },
             { label: 'Rejetées', value: stats.rejected, color: Colors.textSecondary },
           ].map((row) => (
             <View key={row.label} className="flex-row items-center gap-3">

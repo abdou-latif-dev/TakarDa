@@ -113,7 +113,7 @@ export function FieldRenderer({ field, value, onChange }: FieldRendererProps) {
         <View
           className="mt-0.5 h-5 w-5 items-center justify-center rounded"
           style={{ backgroundColor: checked ? Colors.primary : 'transparent', borderWidth: checked ? 0 : 1.5, borderColor: Colors.border }}>
-          {checked && <MaterialIcons name="check" size={14} color="#FFFFFF" />}
+          {checked && <MaterialIcons name="check" size={14} color={Colors.textOnPrimary} />}
         </View>
         <BodyLgText className="flex-1">{field.label}</BodyLgText>
       </Pressable>
