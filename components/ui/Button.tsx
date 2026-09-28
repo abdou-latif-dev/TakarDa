@@ -35,12 +35,13 @@ export function PrimaryButton({
       disabled={isDisabled}
       className={cn(
         multilineLabel
-          ? 'min-h-[52px] h-auto py-2 flex-row items-center justify-center rounded-xl bg-primary px-3 shadow-soft-primary active:scale-[0.98]'
-          : 'h-[52px] flex-row items-center justify-center rounded-xl bg-primary px-6 shadow-soft-primary active:scale-[0.98]',
+          ? 'min-h-[52px] h-auto py-2 flex-row items-center justify-center rounded-xl px-3 shadow-soft-primary active:scale-[0.98]'
+          : 'h-[52px] flex-row items-center justify-center rounded-xl px-6 shadow-soft-primary active:scale-[0.98]',
         fullWidth && 'w-full',
         isDisabled && 'opacity-50',
         className,
       )}
+      style={{ backgroundColor: Colors.primary }}
       {...props}>
       {loading ? (
         <ActivityIndicator color={Colors.textOnPrimary} />

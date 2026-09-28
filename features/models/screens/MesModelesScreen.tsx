@@ -134,13 +134,13 @@ export function MesModelesScreen() {
             {[
               { title: 'Immobilier', icon: 'home-work' as const, href: '/immobilier' as const },
               { title: 'Factures', icon: 'receipt-long' as const, href: '/factures' as const },
-              { title: 'Commerce / Business', icon: 'storefront' as const, href: '/form/templates' as const },
-              { title: 'Tontines', icon: 'savings' as const, href: '/(tabs)/modeles' as const },
+              { title: 'Commerce / Business', icon: 'storefront' as const, href: '/form/templates?category=commerce' as const },
+              { title: 'Tontines', icon: 'savings' as const, href: '/tontine/create' as const },
             ].map((tool) => (
               <Pressable
                 key={tool.title}
                 accessibilityRole="button"
-                onPress={() => router.push(tool.href)}
+                onPress={() => router.push(tool.href as never)}
                 className="min-h-14 min-w-[47%] flex-1 flex-row items-center gap-2 rounded-xl border border-border bg-surface px-3 py-3 active:opacity-80">
                 <MaterialIcons name={tool.icon} size={20} color={Colors.primary} />
                 <LabelText className="flex-1 font-inter-semibold text-text-primary">{tool.title}</LabelText>

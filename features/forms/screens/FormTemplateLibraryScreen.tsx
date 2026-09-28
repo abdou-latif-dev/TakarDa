@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -24,7 +24,12 @@ const CATEGORIES: { value: FormTemplate['category'] | 'all'; label: string }[] =
 
 export function FormTemplateLibraryScreen() {
   const { templates, status, fetchTemplates, applyTemplate } = useFormTemplateStore();
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]['value']>('all');
+  const { category: initialCategory } = useLocalSearchParams<{ category?: string }>();
+  const isKnownCategory = (value?: string): value is (typeof CATEGORIES)[number]['value'] =>
+    CATEGORIES.some((c) => c.value === value);
+  const [category, setCategory] = useState<(typeof CATEGORIES)[number]['value']>(
+    isKnownCategory(initialCategory) ? initialCategory : 'all',
+  );
   const [applyingId, setApplyingId] = useState<string | null>(null);
 
   useEffect(() => {
