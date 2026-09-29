@@ -61,9 +61,12 @@ export function ErrorState({
   );
 }
 
-/** Shimmering rectangle — building block for skeleton loading states. */
+/** Building block for skeleton loading states. Uses `surface-container-high`
+ * rather than the dedicated `skeleton` token — that token (#EEEEEF) sits only
+ * ~1-2% off `background` (#FFFFFF) in the monochrome palette, which reads as
+ * an empty screen rather than a loading one on a real display. */
 export function Skeleton({ className, style }: { className?: string; style?: object }) {
-  return <View className={`rounded bg-skeleton ${className ?? ''}`} style={style} />;
+  return <View className={`rounded bg-surface-container-high ${className ?? ''}`} style={style} />;
 }
 
 /** Full skeleton mimicking a stat-grid + list layout while data loads. */

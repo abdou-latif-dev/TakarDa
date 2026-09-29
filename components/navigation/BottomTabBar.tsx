@@ -42,7 +42,8 @@ export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
             <View key={route.key} className="flex-1 items-center">
               <Pressable
                 onPress={onPress}
-                className="-mt-7 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-soft-primary active:scale-95">
+                className="-mt-7 h-14 w-14 items-center justify-center rounded-full shadow-soft-primary active:scale-95"
+                style={{ backgroundColor: Colors.primary }}>
                 <MaterialIcons name="add" size={28} color={Colors.textOnPrimary} />
               </Pressable>
             </View>

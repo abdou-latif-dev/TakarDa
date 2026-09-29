@@ -12,7 +12,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { vars, useColorScheme } from 'nativewind';
 import {
   useFonts,
@@ -152,7 +152,12 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={[{ flex: 1 }, vars(getThemeVariables(activeScheme))]}>
-      <SafeAreaProvider>
+      {/* initialWindowMetrics: react-native-safe-area-context's own documented fix for
+          insets reading as {top:0,...} for a brief moment after a screen mounts, before
+          the native onInsetsChange event arrives — most noticeable on freshly-pushed/
+          modal screens on Android, exactly the "content sits too close to the top" symptom
+          reported after real-device testing (Étape 4D follow-up). */}
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: activeScheme === 'dark' ? DARK_COLORS.background : LIGHT_COLORS.background } }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
