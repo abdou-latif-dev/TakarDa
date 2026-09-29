@@ -15,13 +15,6 @@ import { Colors } from '@/constants/theme';
 import { formatFcfa, formatLongDate } from '@/utils/format';
 import { useGroupStore } from '@/store/groupStore';
 import { useTontineStore } from '@/store/tontineStore';
-import type { ContributionStatus } from '@/types/entities';
-
-const STATUS_MAP: Record<ContributionStatus, 'paid' | 'pending' | 'late'> = {
-  paid: 'paid',
-  pending: 'pending',
-  late: 'late',
-};
 
 export function TontineDashboardScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
@@ -49,7 +42,6 @@ export function TontineDashboardScreen() {
   }
 
   const paidRatio = summary.members.length > 0 ? summary.paidCount / summary.members.length : 0;
-  const lateCount = Object.values(summary.contributionsByMember).filter((c) => c?.status === 'late').length;
   const dueDate = summary.cycle ? formatLongDate(new Date(summary.cycle.dueDate)) : '—';
 
   const onAdvanceRound = () => {
@@ -100,9 +92,12 @@ export function TontineDashboardScreen() {
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader showBack trailing={<IconButton icon="delete-outline" onPress={onDelete} disabled={deleting} />} />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
-        <View>
-          <DisplayText numberOfLines={2} className="text-2xl">{group?.name}</DisplayText>
-          <BodyMdText>{summary.cycle?.label ?? 'Cycle en cours'}</BodyMdText>
+        <View className="flex-row items-start justify-between gap-3">
+          <View className="flex-1">
+            <DisplayText numberOfLines={2} className="text-2xl">{group?.name}</DisplayText>
+            <BodyMdText>{summary.cycle?.label ?? 'Cycle en cours'}</BodyMdText>
+          </View>
+          <IconButton icon="edit" onPress={() => router.push(`/tontine/create?groupId=${groupId}`)} />
         </View>
 
         <View className="flex-row gap-3">
@@ -132,10 +127,20 @@ export function TontineDashboardScreen() {
               </View>
               <View className="flex-1">
                 <LabelText>
-                  Tour {summary.currentRound} / {summary.totalRounds}
+                  Prochain bénéficiaire · Tour {summary.currentRound} / {summary.totalRounds}
                 </LabelText>
                 <HeadlineText numberOfLines={2} className="text-lg">{summary.nextBeneficiary?.displayName ?? '—'}</HeadlineText>
               </View>
+            </View>
+          </View>
+          <View className="flex-row gap-3">
+            <View className="flex-1 gap-0.5">
+              <LabelText>Montant prévu</LabelText>
+              <HeadlineText className="text-lg">{formatFcfa(summary.totalExpected)}</HeadlineText>
+            </View>
+            <View className="flex-1 gap-0.5">
+              <LabelText>Échéance</LabelText>
+              <HeadlineText className="text-lg">{dueDate}</HeadlineText>
             </View>
           </View>
           <ProgressBar progress={summary.progress} />
@@ -165,18 +170,12 @@ export function TontineDashboardScreen() {
 
           <View className="flex-row gap-3">
             <Card className="flex-1 gap-1">
-              <LabelText>Prochaine échéance</LabelText>
-              <HeadlineText className="text-lg">{dueDate}</HeadlineText>
-            </Card>
-          </View>
-          <View className="flex-row gap-3">
-            <Card className="flex-1 gap-1">
               <LabelText>Cotisations</LabelText>
               <HeadlineText className="text-lg">{formatFcfa(summary.totalCollected)}</HeadlineText>
             </Card>
             <Card className="flex-1 gap-1 border-error-container bg-error-container/10">
               <LabelText>Retards</LabelText>
-              <HeadlineText className="text-lg text-error">{lateCount}</HeadlineText>
+              <HeadlineText className="text-lg text-error">{summary.lateCount}</HeadlineText>
             </Card>
           </View>
         </View>
@@ -188,19 +187,16 @@ export function TontineDashboardScreen() {
             onAction={() => router.push(`/group/${groupId}/tontine/active-members`)}
           />
           <View className="rounded-lg border border-border bg-surface px-gutter-card shadow-soft">
-            {summary.members.slice(0, 5).map((member, i) => {
-              const contribution = summary.contributionsByMember[member.id];
-              return (
-                <View key={member.id} className={i < 4 ? 'border-b border-border' : undefined}>
-                  <MemberRow
-                    name={member.displayName}
-                    accountType={member.accountType}
-                    trailingText={formatFcfa(summary.cycle?.amountExpectedPerMember ?? 10000)}
-                    status={contribution ? STATUS_MAP[contribution.status] : 'pending'}
-                  />
-                </View>
-              );
-            })}
+            {summary.members.slice(0, 5).map((member, i) => (
+              <View key={member.id} className={i < 4 ? 'border-b border-border' : undefined}>
+                <MemberRow
+                  name={member.displayName}
+                  accountType={member.accountType}
+                  trailingText={formatFcfa(summary.cycle?.amountExpectedPerMember ?? 10000)}
+                  status={summary.statusByMember[member.id] ?? 'pending'}
+                />
+              </View>
+            ))}
           </View>
         </View>
 

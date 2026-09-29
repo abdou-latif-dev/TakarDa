@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -64,13 +64,29 @@ function RadioRow<T extends string>({
 }
 
 export function CreateTontineScreen() {
+  const { groupId } = useLocalSearchParams<{ groupId?: string }>();
+  const isEditing = !!groupId;
   const createTontine = useGroupStore((s) => s.createTontine);
+  const updateTontine = useGroupStore((s) => s.updateTontine);
+  const group = useGroupStore((s) => (groupId ? s.groups.find((g) => g.id === groupId) : undefined));
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('10000');
   const [frequency, setFrequency] = useState<TontineFrequency>('weekly');
   const [startDate] = useState(new Date());
   const [orderMethod, setOrderMethod] = useState<TontineOrderMethod>('draw');
   const [submitting, setSubmitting] = useState(false);
+
+  // Edit mode pre-fills from the already-loaded group (Dashboard fetches it
+  // before this screen can be reached) — name/cotisation/fréquence only, the
+  // 3 fields updateTontine actually persists. Rotation order and members stay
+  // on their own dedicated screens, unrelated to this form.
+  useEffect(() => {
+    if (group) {
+      setName(group.name);
+      setAmount(String(group.contributionAmount ?? 0));
+      setFrequency(group.frequency ?? 'monthly');
+    }
+  }, [group]);
 
   const onSubmit = async () => {
     if (!name.trim()) {
@@ -79,14 +95,19 @@ export function CreateTontineScreen() {
     }
     setSubmitting(true);
     try {
-      const group = await createTontine({
-        name: name.trim(),
-        contributionAmount: Number(amount) || 0,
-        frequency,
-        startDate: startDate.toISOString(),
-        orderMethod,
-      });
-      router.replace(`/group/${group.id}/tontine`);
+      if (isEditing && groupId) {
+        await updateTontine(groupId, { name: name.trim(), contributionAmount: Number(amount) || 0, frequency });
+        router.back();
+      } else {
+        const created = await createTontine({
+          name: name.trim(),
+          contributionAmount: Number(amount) || 0,
+          frequency,
+          startDate: startDate.toISOString(),
+          orderMethod,
+        });
+        router.replace(`/group/${created.id}/tontine`);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -94,10 +115,12 @@ export function CreateTontineScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
-      <AppHeader title="Créer une Tontine" showBack />
+      <AppHeader title={isEditing ? 'Modifier la tontine' : 'Créer une Tontine'} showBack />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
         <ScrollView contentContainerClassName="gap-6 px-page-margin pb-6 pt-2" keyboardShouldPersistTaps="handled">
-          <BodyMdText>Configurez les détails de votre nouvelle tontine.</BodyMdText>
+          <BodyMdText>
+            {isEditing ? 'Modifiez le nom, la cotisation ou la fréquence.' : 'Configurez les détails de votre nouvelle tontine.'}
+          </BodyMdText>
 
           <Card className="gap-4">
             <SectionTitleText className="text-base">Informations générales</SectionTitleText>
@@ -133,34 +156,44 @@ export function CreateTontineScreen() {
                 ))}
               </View>
             </View>
-            <View className="flex-row items-center gap-3 rounded-md border border-border bg-background-secondary p-3">
-              <MaterialIcons name="event" size={18} color={Colors.textSecondary} />
-              <LabelText className="text-text-primary">Début : {formatLongDate(startDate)}</LabelText>
-            </View>
+            {!isEditing && (
+              <View className="flex-row items-center gap-3 rounded-md border border-border bg-background-secondary p-3">
+                <MaterialIcons name="event" size={18} color={Colors.textSecondary} />
+                <LabelText className="text-text-primary">Début : {formatLongDate(startDate)}</LabelText>
+              </View>
+            )}
           </Card>
 
-          <View className="gap-3">
-            <View>
-              <SectionTitleText className="text-base">Ordre de ramassage</SectionTitleText>
-              <LabelText>Comment l&apos;ordre de réception sera-t-il défini ?</LabelText>
+          {!isEditing && (
+            <View className="gap-3">
+              <View>
+                <SectionTitleText className="text-base">Ordre de ramassage</SectionTitleText>
+                <LabelText>Comment l&apos;ordre de réception sera-t-il défini ?</LabelText>
+              </View>
+              <View className="gap-2">
+                {ORDER_METHODS.map((m) => (
+                  <RadioRow
+                    key={m.value}
+                    selected={orderMethod === m.value}
+                    label={m.label}
+                    description={m.description}
+                    icon={m.icon}
+                    onPress={() => setOrderMethod(m.value)}
+                  />
+                ))}
+              </View>
             </View>
-            <View className="gap-2">
-              {ORDER_METHODS.map((m) => (
-                <RadioRow
-                  key={m.value}
-                  selected={orderMethod === m.value}
-                  label={m.label}
-                  description={m.description}
-                  icon={m.icon}
-                  onPress={() => setOrderMethod(m.value)}
-                />
-              ))}
-            </View>
-          </View>
+          )}
         </ScrollView>
 
         <View className="border-t border-border px-page-margin pb-4 pt-4">
-          <PrimaryButton label="Créer la tontine" icon="add-circle" iconPosition="left" loading={submitting} onPress={onSubmit} />
+          <PrimaryButton
+            label={isEditing ? 'Enregistrer les modifications' : 'Créer la tontine'}
+            icon={isEditing ? undefined : 'add-circle'}
+            iconPosition="left"
+            loading={submitting}
+            onPress={onSubmit}
+          />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

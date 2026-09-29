@@ -39,13 +39,23 @@ export interface CreateTontineInput {
   frequency: TontineFrequency;
   startDate: string;
   orderMethod: TontineOrderMethod;
+  /** Defaults to true (existing behavior unchanged for every real caller):
+   * the creator joins their own tontine as rotation member #1. Set to false
+   * for an admin-only tontine — e.g. the "démo" seed, where the 5 seeded
+   * members must be the entire rotation so the total matches
+   * membres × cotisation exactly, with no extra "Vous" slot. */
+  includeSelfAsMember?: boolean;
 }
 
 export const groupService = {
   async listMyGroups(): Promise<Group[]> {
     await delay();
     const myGroupIds = new Set(memberships.filter((m) => m.userId === CURRENT_USER_ID).map((m) => m.groupId));
-    return groups.filter((g) => myGroupIds.has(g.id)).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+    // Membership alone would hide an admin-only tontine (includeSelfAsMember:
+    // false — e.g. the démo seed) from its own creator, since it has no
+    // membership row at all. ownerId is the reliable "this is my group"
+    // signal; membership is a separate "am I a rotation participant" concern.
+    return groups.filter((g) => myGroupIds.has(g.id) || g.ownerId === CURRENT_USER_ID).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
   },
 
   async getGroup(groupId: string): Promise<Group | null> {
@@ -64,13 +74,14 @@ export const groupService = {
   async createTontine(input: CreateTontineInput): Promise<Group> {
     await delay();
     const now = new Date().toISOString();
+    const includeSelf = input.includeSelfAsMember !== false;
     const group: Group = {
       id: genId('g'),
       name: input.name,
       description: input.description,
       kind: 'tontine',
       ownerId: CURRENT_USER_ID,
-      memberCount: 1,
+      memberCount: includeSelf ? 1 : 0,
       createdAt: now,
       updatedAt: now,
       contributionAmount: input.contributionAmount,
@@ -81,17 +92,19 @@ export const groupService = {
       tontineStatus: 'active',
     };
     groups.unshift(group);
-    memberships.push({
-      id: genId('m'),
-      groupId: group.id,
-      userId: CURRENT_USER_ID,
-      role: 'admin',
-      displayName: 'Vous',
-      joinedAt: now,
-      status: 'active',
-      accountType: 'formease_user',
-      position: 1,
-    });
+    if (includeSelf) {
+      memberships.push({
+        id: genId('m'),
+        groupId: group.id,
+        userId: CURRENT_USER_ID,
+        role: 'admin',
+        displayName: 'Vous',
+        joinedAt: now,
+        status: 'active',
+        accountType: 'formease_user',
+        position: 1,
+      });
+    }
     tontineCycles.push({
       id: genId('c'),
       groupId: group.id,
@@ -107,6 +120,32 @@ export const groupService = {
       description: `${group.name} a été créée.`,
       groupId: group.id,
       at: now,
+    });
+    return group;
+  },
+
+  /** Edits the tontine's own info (name/cotisation/fréquence) — never the
+   * rotation order or membership, which stay on their own dedicated flows
+   * (Ordre de passage / Ajouter un membre). Keeps the active cycle's
+   * `amountExpectedPerMember` in sync so a changed cotisation is reflected
+   * immediately in the next-beneficiary payout total. */
+  async updateTontine(groupId: string, input: { name: string; contributionAmount: number; frequency: TontineFrequency }): Promise<Group> {
+    await delay();
+    const group = groups.find((g) => g.id === groupId);
+    if (!group) throw new Error('Tontine introuvable.');
+    group.name = input.name;
+    group.contributionAmount = input.contributionAmount;
+    group.frequency = input.frequency;
+    group.updatedAt = new Date().toISOString();
+    const cycle = tontineCycles.find((c) => c.groupId === groupId);
+    if (cycle) cycle.amountExpectedPerMember = input.contributionAmount;
+    activityEvents.unshift({
+      id: genId('a'),
+      type: 'group_updated',
+      title: 'Tontine modifiée',
+      description: `${group.name} a été mise à jour.`,
+      groupId,
+      at: group.updatedAt,
     });
     return group;
   },

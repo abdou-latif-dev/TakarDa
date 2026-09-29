@@ -6,13 +6,28 @@ export interface TontineSummary {
   cycle: TontineCycle | null;
   members: Membership[];
   contributionsByMember: Record<string, Contribution | undefined>;
+  /** Display status per member for the current cycle — 'late' is derived at
+   * read time (never stored on the Contribution itself: a member simply has
+   * no contribution record until one is made) from the cycle's due date, the
+   * same "compute at read time, don't persist derived state" rule already
+   * used for Immobilier's lateness (see immobilierService.computeContratLateness). */
+  statusByMember: Record<string, ContributionStatus>;
   totalCollected: number;
   totalExpected: number;
   paidCount: number;
+  lateCount: number;
   currentRound: number;
   totalRounds: number;
   nextBeneficiary: Membership | null;
   progress: number; // 0..1
+}
+
+/** A member is late once the cycle's due date has passed and they still have
+ * no 'paid' contribution for it — never based on a stored 'late' status. */
+function deriveMemberStatus(contribution: Contribution | undefined, dueDate: string | undefined, now: Date): ContributionStatus {
+  if (contribution?.status === 'paid') return 'paid';
+  if (dueDate && now.getTime() > new Date(dueDate).getTime()) return 'late';
+  return 'pending';
 }
 
 function generateReference(): string {
@@ -39,13 +54,22 @@ export const tontineService = {
     const totalRounds = members.length;
     const nextBeneficiary = members.find((m) => m.position === currentRound) ?? null;
 
+    const now = new Date();
+    const statusByMember: Record<string, ContributionStatus> = {};
+    for (const member of members) {
+      statusByMember[member.id] = deriveMemberStatus(contributionsByMember[member.id], cycle?.dueDate, now);
+    }
+    const lateCount = Object.values(statusByMember).filter((s) => s === 'late').length;
+
     return {
       cycle,
       members,
       contributionsByMember,
+      statusByMember,
       totalCollected: paid.reduce((sum, c) => sum + c.amount, 0),
       totalExpected: (cycle?.amountExpectedPerMember ?? 0) * members.length,
       paidCount: paid.length,
+      lateCount,
       currentRound,
       totalRounds,
       nextBeneficiary,

@@ -9,11 +9,12 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SectionTitleText, LabelText } from '@/components/ui/Typography';
-import { IconButton } from '@/components/ui/Button';
+import { IconButton, SecondaryButton } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
 import { formatFcfa, formatRelativeTime } from '@/utils/format';
 import { useGroupStore } from '@/store/groupStore';
 import { useFormStore } from '@/store/formStore';
+import { seedDemoTontine } from '@/services/tontineDemoService';
 import type { Group } from '@/types/entities';
 
 const FREQUENCY_LABEL: Record<string, string> = {
@@ -88,6 +89,18 @@ export function MesModelesScreen() {
   const { groups, status: groupsStatus, fetchGroups, fetchMembers } = useGroupStore();
   const { forms, status: formsStatus, fetchForms } = useFormStore();
   const [confirmation, setConfirmation] = useState<string | null>(null);
+  const [seedingDemo, setSeedingDemo] = useState(false);
+
+  const onSeedDemo = async () => {
+    setSeedingDemo(true);
+    try {
+      const group = await seedDemoTontine();
+      await fetchGroups();
+      router.push(`/group/${group.id}/tontine`);
+    } finally {
+      setSeedingDemo(false);
+    }
+  };
 
   useEffect(() => {
     fetchGroups();
@@ -149,6 +162,12 @@ export function MesModelesScreen() {
             ))}
           </View>
           <LabelText>Chaque paiement reste validé manuellement par vous.</LabelText>
+          <SecondaryButton
+            label="Essayer avec une tontine de démonstration"
+            icon="auto-awesome"
+            loading={seedingDemo}
+            onPress={onSeedDemo}
+          />
         </View>
         {loading && tontines.length === 0 && forms.length === 0 && <LoadingState />}
         {hasError && <ErrorState onRetry={() => { fetchGroups(); fetchForms(); }} />}

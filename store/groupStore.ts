@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { groupService, type CreateTontineInput } from '@/services/groupService';
 import { useTontineStore } from './tontineStore';
 import type { AsyncStatus } from './asyncStatus';
-import type { Group, Membership } from '@/types/entities';
+import type { Group, Membership, TontineFrequency } from '@/types/entities';
 
 interface GroupState {
   groups: Group[];
@@ -14,6 +14,7 @@ interface GroupState {
   fetchGroups: () => Promise<void>;
   fetchMembers: (groupId: string) => Promise<void>;
   createTontine: (input: CreateTontineInput) => Promise<Group>;
+  updateTontine: (groupId: string, input: { name: string; contributionAmount: number; frequency: TontineFrequency }) => Promise<Group>;
   addFormeaseMember: (groupId: string, formeaseId: string) => Promise<void>;
   addGuestMember: (groupId: string, input: { firstName: string; lastName: string; phone?: string }) => Promise<void>;
   setMemberOrder: (groupId: string, orderedMembershipIds: string[]) => Promise<void>;
@@ -54,6 +55,12 @@ export const useGroupStore = create<GroupState>((set, get) => ({
   createTontine: async (input) => {
     const group = await groupService.createTontine(input);
     set((s) => ({ groups: [group, ...s.groups] }));
+    return group;
+  },
+
+  updateTontine: async (groupId, input) => {
+    const group = await groupService.updateTontine(groupId, input);
+    set((s) => ({ groups: s.groups.map((g) => (g.id === groupId ? group : g)) }));
     return group;
   },
 

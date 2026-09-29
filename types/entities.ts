@@ -196,6 +196,7 @@ export type ActivityType =
   | 'form_updated'
   | 'qr_scanned'
   | 'group_created'
+  | 'group_updated'
   | 'activity_created'
   | 'order_updated'
   | 'cycle_completed'
