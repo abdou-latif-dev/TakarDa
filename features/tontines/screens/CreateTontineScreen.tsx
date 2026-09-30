@@ -21,11 +21,16 @@ const FREQUENCY_LABEL: Record<TontineFrequency, string> = {
   custom: 'Personnalisée',
 };
 
+// 'custom' is deliberately NOT offered here — the type/engine support it
+// (calculateTourDate() falls back to a 7-day interval for it, documented),
+// but there is no real interval-picker UI behind it yet, so offering it
+// would be a misleading choice (validation pass, 2026-09-30, §11). Hidden,
+// not removed: an existing tontine already saved with frequency: 'custom'
+// keeps working and displaying correctly (see FREQUENCY_LABEL below).
 const FREQUENCIES: { value: TontineFrequency; label: string }[] = [
   { value: 'daily', label: 'Quotidien' },
   { value: 'weekly', label: 'Hebdomadaire' },
   { value: 'monthly', label: 'Mensuel' },
-  { value: 'custom', label: 'Autre' },
 ];
 
 const ORDER_METHODS: { value: TontineOrderMethod; label: string; description: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [

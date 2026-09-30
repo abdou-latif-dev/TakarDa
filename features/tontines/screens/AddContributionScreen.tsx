@@ -136,15 +136,14 @@ export function AddContributionScreen() {
         </View>
       </ScrollView>
 
-      <View className="gap-3 border-t border-border px-page-margin pb-4 pt-4">
-        <View className="flex-row items-center justify-between">
-          <LabelText className="font-inter-semibold text-text-primary">
-            {checkedCount} / {summary.totalMembers} membres
-          </LabelText>
-          <LabelText className="font-inter-semibold text-text-primary">
-            {formatFcfa(previewCollected)} / {formatFcfa(tour.expectedTotalAmount)}
-          </LabelText>
-        </View>
+      <View className="gap-1 border-t border-border px-page-margin pb-4 pt-4">
+        {/* Two separate rows, not one crowded flex-row — "75 000 FCFA / 125
+            000 FCFA" alongside a member count can overflow a small Android
+            screen's width in a single row (responsive audit, 2026-09-30). */}
+        <BodyLgText className="font-inter-semibold" numberOfLines={1}>
+          {formatFcfa(previewCollected)} / {formatFcfa(tour.expectedTotalAmount)}
+        </BodyLgText>
+        <LabelText className="mb-2">{checkedCount} / {summary.totalMembers} membres</LabelText>
         <PrimaryButton label="Enregistrer" loading={saving} onPress={onSave} />
       </View>
     </SafeAreaView>

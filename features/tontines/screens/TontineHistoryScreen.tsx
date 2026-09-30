@@ -92,8 +92,8 @@ export function TontineHistoryScreen() {
                       <LabelText>{formatLongDate(new Date(entry.tour.scheduledDate))}</LabelText>
                     </View>
                   </View>
-                  <View className="flex-row items-center justify-between">
-                    <LabelText className="font-inter-semibold text-text-primary">
+                  <View className="flex-row items-center gap-2">
+                    <LabelText className="flex-1 font-inter-semibold text-text-primary" numberOfLines={1}>
                       {formatFcfa(entry.collected)} / {formatFcfa(entry.expectedTotal)} · {entry.paidCount}/{entry.totalMembers}
                     </LabelText>
                     <StatusBadge status={STATUS_BADGE[entry.status]} />

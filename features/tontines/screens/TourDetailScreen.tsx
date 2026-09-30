@@ -78,22 +78,22 @@ export function TourDetailScreen() {
             <LabelText>Bénéficiaire</LabelText>
             <HeadlineText className="text-lg">{summary.nextBeneficiary?.displayName ?? '—'}</HeadlineText>
           </View>
-          <View className="flex-row flex-wrap gap-4">
-            <View className="gap-0.5">
+          <View className="flex-row flex-wrap gap-3">
+            <View className="min-w-[45%] flex-1 gap-0.5">
               <LabelText>Par membre</LabelText>
-              <HeadlineText className="text-lg">{formatFcfa(tour.expectedAmountPerMember)}</HeadlineText>
+              <HeadlineText className="text-lg" numberOfLines={1} adjustsFontSizeToFit>{formatFcfa(tour.expectedAmountPerMember)}</HeadlineText>
             </View>
-            <View className="gap-0.5">
+            <View className="min-w-[45%] flex-1 gap-0.5">
               <LabelText>Attendu</LabelText>
-              <HeadlineText className="text-lg">{formatFcfa(summary.expectedTotal)}</HeadlineText>
+              <HeadlineText className="text-lg" numberOfLines={1} adjustsFontSizeToFit>{formatFcfa(summary.expectedTotal)}</HeadlineText>
             </View>
-            <View className="gap-0.5">
+            <View className="min-w-[45%] flex-1 gap-0.5">
               <LabelText>Collecté</LabelText>
-              <HeadlineText className="text-lg">{formatFcfa(summary.collected)}</HeadlineText>
+              <HeadlineText className="text-lg" numberOfLines={1} adjustsFontSizeToFit>{formatFcfa(summary.collected)}</HeadlineText>
             </View>
-            <View className="gap-0.5">
+            <View className="min-w-[45%] flex-1 gap-0.5">
               <LabelText>Reste</LabelText>
-              <HeadlineText className="text-lg">{formatFcfa(summary.remaining)}</HeadlineText>
+              <HeadlineText className="text-lg" numberOfLines={1} adjustsFontSizeToFit>{formatFcfa(summary.remaining)}</HeadlineText>
             </View>
           </View>
           <LabelText className="font-inter-semibold text-text-primary">
