@@ -1,53 +1,93 @@
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { AppHeader } from '@/components/ui/AppHeader';
 import { Card } from '@/components/ui/Card';
-import { TextField, TextAreaField } from '@/components/ui/TextField';
-import { PrimaryButton } from '@/components/ui/Button';
-import { Switch } from '@/components/ui/Switch';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { Avatar } from '@/components/ui/Avatar';
-import { SectionTitleText, LabelText, BodyLgText } from '@/components/ui/Typography';
-import { Colors } from '@/constants/theme';
-import { useGroupStore } from '@/store/groupStore';
+import { PrimaryButton } from '@/components/ui/Button';
+import { LoadingState } from '@/components/ui/States';
+import { SectionTitleText, LabelText, BodyLgText, HeadlineText } from '@/components/ui/Typography';
+import { formatFcfa, formatLongDate } from '@/utils/format';
 import { useTontineStore } from '@/store/tontineStore';
-import { formatLongDate } from '@/utils/format';
 
+/**
+ * "Cotisation +" — refonte (Tour/Boucle audit, 2026-09-30, §19-20).
+ *
+ * The amount is the tour's own frozen `expectedAmountPerMember` — never an
+ * editable field (§7). Checking a member records their payment; a member
+ * already marked paid renders checked-and-locked (can't be unchecked from
+ * here — see Checkbox `disabled` and the comment on recordContributions()
+ * in tontineService.ts for why this is the safest of the three options the
+ * brief offered for §20).
+ *
+ * Defaults to the tontine's current tour; pass `?tourNumber=` (used by the
+ * Tour detail screen) to record contributions for a different tour.
+ */
 export function AddContributionScreen() {
-  const { groupId } = useLocalSearchParams<{ groupId: string }>();
-  const { members, fetchMembers } = useGroupStore();
-  const addContribution = useTontineStore((s) => s.addContribution);
-  const summary = useTontineStore((s) => s.summaries[groupId]);
+  const { groupId, tourNumber: tourNumberParam } = useLocalSearchParams<{ groupId: string; tourNumber?: string }>();
+  const { summaries, summaryStatus, tourSummaries, tourSummaryStatus, fetchSummary, fetchTourSummary, recordContributions } = useTontineStore();
 
-  const groupMembers = members[groupId] ?? [];
-  const [memberId, setMemberId] = useState<string | undefined>();
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [amount, setAmount] = useState('10000');
-  const [paid, setPaid] = useState(true);
-  const [note, setNote] = useState('');
+  const explicitTourNumber = tourNumberParam ? Number(tourNumberParam) : undefined;
+  const key = explicitTourNumber ? `${groupId}:${explicitTourNumber}` : groupId;
+
+  useEffect(() => {
+    if (explicitTourNumber) fetchTourSummary(groupId, explicitTourNumber);
+    else fetchSummary(groupId);
+  }, [groupId, explicitTourNumber, fetchSummary, fetchTourSummary]);
+
+  const summary = explicitTourNumber ? tourSummaries[key] : summaries[groupId];
+  const status = explicitTourNumber ? tourSummaryStatus[key] : summaryStatus[groupId];
+
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (groupMembers.length === 0) fetchMembers(groupId);
-  }, [groupId, groupMembers.length, fetchMembers]);
+    if (!summary) return;
+    setChecked((prev) => {
+      const next = { ...prev };
+      for (const s of summary.memberStatuses) {
+        if (s.status === 'paid') next[s.member.id] = true;
+        else if (!(s.member.id in next)) next[s.member.id] = false;
+      }
+      return next;
+    });
+  }, [summary]);
 
-  const selectedMember = groupMembers.find((m) => m.id === memberId);
-  const todayLabel = formatLongDate(new Date());
+  if (status !== 'success' || !summary || !summary.currentTour) {
+    return (
+      <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
+        <AppHeader title="Cotisation" showBack />
+        <View className="px-page-margin">
+          <LoadingState />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const tour = summary.currentTour;
+  const dateLabel = formatLongDate(new Date(tour.scheduledDate));
+
+  const toggle = (memberId: string, alreadyPaid: boolean) => {
+    if (alreadyPaid) return;
+    setChecked((prev) => ({ ...prev, [memberId]: !prev[memberId] }));
+  };
+
+  const checkedCount = Object.values(checked).filter(Boolean).length;
+  const previewCollected = summary.memberStatuses.reduce(
+    (sum, s) => sum + (checked[s.member.id] ? tour.expectedAmountPerMember : 0),
+    0,
+  );
 
   const onSave = async () => {
-    if (!memberId || !summary?.cycle) return;
+    const newlyChecked = summary.memberStatuses.filter((s) => checked[s.member.id] && s.status !== 'paid').map((s) => s.member.id);
     setSaving(true);
     try {
-      const contribution = await addContribution({
-        groupId,
-        cycleId: summary.cycle.id,
-        memberId,
-        amount: Number(amount) || 0,
-        status: paid ? 'paid' : 'pending',
-        note: note.trim() || undefined,
-      });
-      router.replace(`/group/${groupId}/tontine/contribution-success?contributionId=${contribution.id}`);
+      if (newlyChecked.length > 0) {
+        await recordContributions({ groupId, tourId: tour.id, memberIds: newlyChecked });
+      }
+      router.back();
     } finally {
       setSaving(false);
     }
@@ -55,90 +95,58 @@ export function AddContributionScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
-      <View className="flex-row items-center justify-between px-page-margin py-3">
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <LabelText className="font-inter-semibold text-text-secondary">Annuler</LabelText>
-        </Pressable>
-        <SectionTitleText className="text-base">Nouvelle cotisation</SectionTitleText>
-        <View style={{ width: 50 }} />
-      </View>
-
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-      <ScrollView contentContainerClassName="gap-4 px-page-margin pb-6" keyboardShouldPersistTaps="handled">
-        <Card className="gap-0 p-0">
-          <Pressable onPress={() => setPickerOpen((o) => !o)} className="flex-row items-center gap-3 p-gutter-card">
-            <MaterialIcons name="person" size={20} color={Colors.textSecondary} />
-            <LabelText className="flex-1">Membre</LabelText>
-            <BodyLgText className={selectedMember ? 'font-inter-semibold' : 'text-text-muted'}>
-              {selectedMember?.displayName ?? 'Sélectionner'}
-            </BodyLgText>
-            <MaterialIcons name="chevron-right" size={18} color={Colors.emptyIcon} />
-          </Pressable>
-
-          {pickerOpen && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3 p-gutter-card">
-              {groupMembers.map((m) => (
-                <Pressable
-                  key={m.id}
-                  onPress={() => {
-                    setMemberId(m.id);
-                    setPickerOpen(false);
-                  }}
-                  className="items-center gap-1">
-                  <Avatar name={m.displayName} size={44} />
-                  <LabelText>{m.displayName}</LabelText>
-                </Pressable>
-              ))}
-            </ScrollView>
-          )}
-
-          <View className="h-px bg-border" />
-
-          <View className="flex-row items-center gap-3 p-gutter-card">
-            <View className="h-8 w-8 items-center justify-center rounded-full bg-primary-soft">
-              <MaterialIcons name="payments" size={16} color={Colors.primary} />
-            </View>
-            <LabelText className="flex-1">Montant</LabelText>
-            <TextField
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="numeric"
-              containerClassName="w-28"
-              textAlign="right"
-            />
-            <LabelText>FCFA</LabelText>
+      <AppHeader title={`Tour ${tour.tourNumber}`} showBack />
+      <ScrollView contentContainerClassName="gap-4 px-page-margin pb-6" showsVerticalScrollIndicator={false}>
+        <Card className="gap-3">
+          <View>
+            <LabelText>{dateLabel}</LabelText>
+            <SectionTitleText className="text-base" numberOfLines={2}>
+              Bénéficiaire : {summary.nextBeneficiary?.displayName ?? '—'}
+            </SectionTitleText>
           </View>
-
-          <View className="h-px bg-border" />
-
-          <View className="flex-row items-center gap-3 p-gutter-card">
-            <MaterialIcons name="calendar-today" size={20} color={Colors.textSecondary} />
-            <LabelText className="flex-1">Date</LabelText>
-            <BodyLgText>Aujourd&apos;hui, {todayLabel}</BodyLgText>
+          <View className="flex-row flex-wrap gap-4">
+            <View className="gap-0.5">
+              <LabelText>Par membre</LabelText>
+              <HeadlineText className="text-lg">{formatFcfa(tour.expectedAmountPerMember)}</HeadlineText>
+            </View>
+            <View className="gap-0.5">
+              <LabelText>Attendu</LabelText>
+              <HeadlineText className="text-lg">{formatFcfa(tour.expectedTotalAmount)}</HeadlineText>
+            </View>
           </View>
         </Card>
 
-        <Card className="gap-4">
-          <View className="flex-row items-center gap-3">
-            <View className="h-8 w-8 items-center justify-center rounded-full bg-success-container">
-              <MaterialIcons name="check-circle" size={16} color={Colors.success} />
-            </View>
-            <LabelText className="flex-1">Statut : Payé</LabelText>
-            <Switch value={paid} onValueChange={setPaid} />
+        <View className="gap-2">
+          <SectionTitleText className="text-base">Membres</SectionTitleText>
+          <View className="rounded-lg border border-border bg-surface px-gutter-card shadow-soft">
+            {summary.memberStatuses.map((s, i) => (
+              <Pressable
+                key={s.member.id}
+                onPress={() => toggle(s.member.id, s.status === 'paid')}
+                className={`flex-row items-center gap-3 py-3 ${i < summary.memberStatuses.length - 1 ? 'border-b border-border' : ''}`}>
+                <Checkbox checked={!!checked[s.member.id]} disabled={s.status === 'paid'} onValueChange={() => toggle(s.member.id, s.status === 'paid')} />
+                <Avatar name={s.member.displayName} size={36} />
+                <BodyLgText className="flex-1" numberOfLines={1}>
+                  {s.member.displayName}
+                </BodyLgText>
+                <LabelText className="font-inter-semibold text-text-primary">{formatFcfa(tour.expectedAmountPerMember)}</LabelText>
+              </Pressable>
+            ))}
           </View>
-          <TextAreaField
-            label="Note (optionnelle)"
-            placeholder="Ajouter une note..."
-            value={note}
-            onChangeText={setNote}
-          />
-        </Card>
+        </View>
       </ScrollView>
 
-      <View className="border-t border-border px-page-margin pb-4 pt-4">
-        <PrimaryButton label="Enregistrer" loading={saving} disabled={!memberId} onPress={onSave} />
+      <View className="gap-3 border-t border-border px-page-margin pb-4 pt-4">
+        <View className="flex-row items-center justify-between">
+          <LabelText className="font-inter-semibold text-text-primary">
+            {checkedCount} / {summary.totalMembers} membres
+          </LabelText>
+          <LabelText className="font-inter-semibold text-text-primary">
+            {formatFcfa(previewCollected)} / {formatFcfa(tour.expectedTotalAmount)}
+          </LabelText>
+        </View>
+        <PrimaryButton label="Enregistrer" loading={saving} onPress={onSave} />
       </View>
-      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

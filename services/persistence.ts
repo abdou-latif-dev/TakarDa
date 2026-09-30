@@ -17,6 +17,7 @@
 
 import { AppState, type AppStateStatus } from 'react-native';
 import { storage } from './storage';
+import { migrateLegacyTontines } from './tontineMigration';
 import {
   activityEvents,
   contributions,
@@ -32,8 +33,9 @@ import {
   roleDefinitions,
   submissions,
   tontineCycles,
-  toolMembers,
   tools,
+  toolMembers,
+  tours,
   users,
   workflowRules,
 } from './db';
@@ -49,6 +51,7 @@ const legacyCollections = {
   groups,
   memberships,
   tontineCycles,
+  tours,
   contributions,
   forms,
   submissions,
@@ -122,7 +125,14 @@ async function persistCore(): Promise<void> {
 
 /** Reads the last saved snapshot (if any) and repopulates every db.ts collection — legacy and Core. Call once, before any store fetches. */
 export async function hydrateDb(): Promise<void> {
-  await Promise.all([hydrateLegacy(), hydrateCore()]);
+  await Promise.all([
+    // migrateLegacyTontines() must run AFTER legacy data is loaded, and
+    // before any screen reads groups/tours — it backfills Tour records for
+    // any tontine that only has the old single TontineCycle (see
+    // tontineMigration.ts for exactly what it does and does not invent).
+    hydrateLegacy().then(migrateLegacyTontines),
+    hydrateCore(),
+  ]);
 }
 
 async function persistNow(): Promise<void> {

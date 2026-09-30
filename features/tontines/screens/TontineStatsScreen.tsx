@@ -25,7 +25,7 @@ export function TontineStatsScreen() {
     tontineService.getMonthlyContributions(groupId).then(setMonthlyData);
   }, [groupId, fetchSummary]);
 
-  if (summaryStatus[groupId] !== 'success' || !summary) {
+  if (summaryStatus[groupId] !== 'success' || !summary || !summary.currentTour) {
     return (
       <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
         <AppHeader showBack />
@@ -36,8 +36,12 @@ export function TontineStatsScreen() {
     );
   }
 
-  const participation = summary.members.length > 0 ? Math.round((summary.paidCount / summary.members.length) * 100) : 0;
-  const lateCount = Object.values(summary.contributionsByMember).filter((c) => c?.status === 'late').length;
+  // Same lateCount/participation the Dashboard shows — reads directly off
+  // the shared summary rather than recomputing its own definition (this
+  // screen used to filter raw contributions for status==='late', which was
+  // always 0 since that status was never actually stored — see the Tour/
+  // Boucle audit §8/§30: one definition of "late", reused everywhere).
+  const participation = summary.totalMembers > 0 ? Math.round((summary.paidCount / summary.totalMembers) * 100) : 0;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
@@ -45,22 +49,24 @@ export function TontineStatsScreen() {
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         <View>
           <SectionTitleText className="text-xl">{group?.name}</SectionTitleText>
-          <BodyMdText>Statistiques</BodyMdText>
+          <BodyMdText>
+            Boucle {summary.currentTour.cycleNumber} · Tour {summary.currentTour.positionInCycle} / {summary.totalMembers}
+          </BodyMdText>
         </View>
 
         <View className="gap-3">
-          <StatCard icon="account-balance-wallet" label="Total collecté" value={formatFcfa(summary.totalCollected)} />
+          <StatCard icon="account-balance-wallet" label="Total collecté (ce tour)" value={formatFcfa(summary.collected)} />
           <View className="flex-row gap-3">
             <StatCard icon="pie-chart" label="Participation" value={`${participation} %`} className="flex-1" />
-            <StatCard icon="group" label="Membres" value={summary.members.length} className="flex-1" />
+            <StatCard icon="group" label="Membres" value={summary.totalMembers} className="flex-1" />
           </View>
           <View className="flex-row gap-3">
-            <StatCard icon="schedule" label="Retard" value={lateCount} className="flex-1" />
-            <StatCard icon="sync" label="Tour actuel" value={`${summary.currentRound} / ${summary.totalRounds}`} className="flex-1" />
+            <StatCard icon="schedule" label="Retard" value={summary.lateCount} className="flex-1" />
+            <StatCard icon="sync" label="Tour actuel" value={`${summary.currentTour.tourNumber}`} className="flex-1" />
           </View>
         </View>
 
-        {summary.totalCollected > 0 && monthlyData && (
+        {monthlyData && monthlyData.some((m) => m.value > 0) && (
           <Card className="gap-4">
             <SectionTitleText className="text-base">Contributions mensuelles (en milliers FCFA)</SectionTitleText>
             <BarChart data={monthlyData} />

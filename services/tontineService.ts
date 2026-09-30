@@ -1,85 +1,142 @@
-import { activityEvents, contributions, delay, genId, groups, memberships, tontineCycles } from './db';
+import { activityEvents, contributions, delay, genId, groups, memberships } from './db';
 import { formatFcfa } from '@/utils/format';
-import type { Contribution, ContributionStatus, Membership, TontineCycle } from '@/types/entities';
+import { ensureToursGenerated, getLoopBounds, getMemberStatusForTour, getTour, getToursForGroup, getTourStatus, type LoopBounds } from './tontineTours';
+import type { Contribution, ContributionStatus, Group, Membership, Tour, TourStatus } from '@/types/entities';
 
-export interface TontineSummary {
-  cycle: TontineCycle | null;
-  members: Membership[];
-  contributionsByMember: Record<string, Contribution | undefined>;
-  /** Display status per member for the current cycle — 'late' is derived at
-   * read time (never stored on the Contribution itself: a member simply has
-   * no contribution record until one is made) from the cycle's due date, the
-   * same "compute at read time, don't persist derived state" rule already
-   * used for Immobilier's lateness (see immobilierService.computeContratLateness). */
-  statusByMember: Record<string, ContributionStatus>;
-  totalCollected: number;
-  totalExpected: number;
-  paidCount: number;
-  lateCount: number;
-  currentRound: number;
-  totalRounds: number;
-  nextBeneficiary: Membership | null;
-  progress: number; // 0..1
+export interface TourMemberStatus {
+  member: Membership;
+  contribution: Contribution | undefined;
+  status: ContributionStatus;
 }
 
-/** A member is late once the cycle's due date has passed and they still have
- * no 'paid' contribution for it — never based on a stored 'late' status. */
-function deriveMemberStatus(contribution: Contribution | undefined, dueDate: string | undefined, now: Date): ContributionStatus {
-  if (contribution?.status === 'paid') return 'paid';
-  if (dueDate && now.getTime() > new Date(dueDate).getTime()) return 'late';
-  return 'pending';
+/** Everything one tour needs to be displayed, all computed from real data —
+ * see services/tontineTours.ts for the single place each formula lives. */
+export interface TontineSummary {
+  group: Group;
+  /** Active, positioned members — always in rotation order (§33: "ordre de
+   * bénéficiaire ≠ ordre de paiement", never reordered by who paid). */
+  members: Membership[];
+  currentTour: Tour | null;
+  tourStatus: TourStatus;
+  memberStatuses: TourMemberStatus[];
+  paidCount: number;
+  totalMembers: number;
+  collected: number;
+  expectedTotal: number;
+  remaining: number;
+  nextBeneficiary: Membership | null;
+  /** Members late for `currentTour` specifically — the one and only
+   * definition of "late" (§30), reused by every screen that shows it. */
+  lateCount: number;
+  currentLoop: LoopBounds | null;
+  nextLoop: LoopBounds | null;
+}
+
+export interface TourHistoryEntry {
+  tour: Tour;
+  beneficiary: Membership | null;
+  paidCount: number;
+  totalMembers: number;
+  collected: number;
+  expectedTotal: number;
+  status: TourStatus;
 }
 
 function generateReference(): string {
   return `FE-${Math.floor(10000 + Math.random() * 89999)}`;
 }
 
-const MONTH_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+function activeOrderedMembers(groupId: string): Membership[] {
+  return memberships
+    .filter((m) => m.groupId === groupId && m.status === 'active' && typeof m.position === 'number')
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+}
 
 export const tontineService = {
-  async getSummary(groupId: string): Promise<TontineSummary> {
+  /** Summary for one tour — defaults to the tontine's current tour
+   * (group.currentRound), or pass `tourNumber` explicitly for the tour
+   * detail screen / history. Generates the tour on demand if it doesn't
+   * exist yet (never generates further ahead than asked). */
+  async getSummary(groupId: string, tourNumber?: number): Promise<TontineSummary | null> {
     await delay();
     const group = groups.find((g) => g.id === groupId);
-    const cycle = tontineCycles.find((c) => c.groupId === groupId) ?? null;
-    const members = memberships
-      .filter((m) => m.groupId === groupId && m.status !== 'invited')
-      .sort((a, b) => (a.position ?? 999) - (b.position ?? 999));
-    const groupContributions = contributions.filter((c) => c.groupId === groupId && c.cycleId === cycle?.id);
-    const contributionsByMember: Record<string, Contribution | undefined> = {};
-    for (const member of members) {
-      contributionsByMember[member.id] = groupContributions.find((c) => c.memberId === member.id);
-    }
-    const paid = groupContributions.filter((c) => c.status === 'paid');
-    const currentRound = group?.currentRound ?? 1;
-    const totalRounds = members.length;
-    const nextBeneficiary = members.find((m) => m.position === currentRound) ?? null;
+    if (!group) return null;
 
-    const now = new Date();
-    const statusByMember: Record<string, ContributionStatus> = {};
-    for (const member of members) {
-      statusByMember[member.id] = deriveMemberStatus(contributionsByMember[member.id], cycle?.dueDate, now);
-    }
-    const lateCount = Object.values(statusByMember).filter((s) => s === 'late').length;
+    const members = activeOrderedMembers(groupId);
+    const totalMembers = members.length;
+    const targetTourNumber = tourNumber ?? Math.max(group.currentRound ?? 1, 1);
+    ensureToursGenerated(groupId, targetTourNumber);
+    const tour = getTour(groupId, targetTourNumber);
+
+    const memberStatuses: TourMemberStatus[] = tour
+      ? members.map((member) => {
+          const contribution = contributions.find((c) => c.groupId === groupId && c.tourId === tour.id && c.memberId === member.id);
+          return { member, contribution, status: getMemberStatusForTour(contribution, tour) };
+        })
+      : [];
+
+    const paidCount = memberStatuses.filter((s) => s.status === 'paid').length;
+    const lateCount = memberStatuses.filter((s) => s.status === 'late').length;
+    const collected = memberStatuses.reduce((sum, s) => sum + (s.contribution?.status === 'paid' ? s.contribution.amount : 0), 0);
+    const expectedTotal = tour?.expectedTotalAmount ?? 0;
+    const nextBeneficiary = tour ? (members.find((m) => m.id === tour.beneficiaryMemberId) ?? null) : null;
+
+    const startDate = group.startDate ? new Date(group.startDate) : null;
+    const currentLoop = tour && startDate && group.frequency ? getLoopBounds(startDate, group.frequency, totalMembers, tour.cycleNumber) : null;
+    const nextLoop = tour && startDate && group.frequency ? getLoopBounds(startDate, group.frequency, totalMembers, tour.cycleNumber + 1) : null;
 
     return {
-      cycle,
+      group,
       members,
-      contributionsByMember,
-      statusByMember,
-      totalCollected: paid.reduce((sum, c) => sum + c.amount, 0),
-      totalExpected: (cycle?.amountExpectedPerMember ?? 0) * members.length,
-      paidCount: paid.length,
-      lateCount,
-      currentRound,
-      totalRounds,
+      currentTour: tour,
+      tourStatus: tour ? getTourStatus(tour, paidCount, totalMembers) : 'upcoming',
+      memberStatuses,
+      paidCount,
+      totalMembers,
+      collected,
+      expectedTotal,
+      remaining: Math.max(0, expectedTotal - collected),
       nextBeneficiary,
-      progress: totalRounds > 0 ? Math.min(1, (currentRound - 1) / totalRounds) : 0,
+      lateCount,
+      currentLoop,
+      nextLoop,
     };
+  },
+
+  /** Every generated tour (past + current), most recent first — each with
+   * its own frozen beneficiary/date/amount, never recomputed from the
+   * CURRENT member roster (§31: "l'historique doit rester stable"). */
+  async getTourHistory(groupId: string): Promise<TourHistoryEntry[]> {
+    await delay(300);
+    const groupTours = getToursForGroup(groupId);
+    return groupTours
+      .slice()
+      .reverse()
+      .map((tour) => {
+        const beneficiary = memberships.find((m) => m.id === tour.beneficiaryMemberId) ?? null;
+        const tourContributions = contributions.filter((c) => c.groupId === groupId && c.tourId === tour.id);
+        const paidCount = tourContributions.filter((c) => c.status === 'paid').length;
+        const collected = tourContributions.filter((c) => c.status === 'paid').reduce((sum, c) => sum + c.amount, 0);
+        // Derived from the tour's own frozen amounts, not the live member
+        // count — a member added/removed since must never change how many
+        // members THIS tour expected (§36/§37).
+        const totalMembers = tour.expectedAmountPerMember > 0 ? Math.round(tour.expectedTotalAmount / tour.expectedAmountPerMember) : 0;
+        return {
+          tour,
+          beneficiary,
+          paidCount,
+          totalMembers,
+          collected,
+          expectedTotal: tour.expectedTotalAmount,
+          status: getTourStatus(tour, paidCount, totalMembers),
+        };
+      });
   },
 
   /** Real monthly totals (in FCFA) from paid contributions over the last 6 months — never fabricated. */
   async getMonthlyContributions(groupId: string): Promise<{ label: string; value: number }[]> {
     await delay(200);
+    const MONTH_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
     const now = new Date();
     const paid = contributions.filter((c) => c.groupId === groupId && c.status === 'paid');
     const months: { label: string; value: number }[] = [];
@@ -96,94 +153,77 @@ export const tontineService = {
     return months;
   },
 
-  async listHistory(groupId: string): Promise<Contribution[]> {
-    await delay(300);
-    return contributions
-      .filter((c) => c.groupId === groupId)
-      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  },
-
-  async addContribution(input: {
-    groupId: string;
-    cycleId: string;
-    memberId: string;
-    amount: number;
-    status: ContributionStatus;
-    note?: string;
-  }): Promise<Contribution> {
+  /** Marks every listed member as paid for `tourId`, at the tour's own
+   * frozen `expectedAmountPerMember` — never an arbitrary amount (§7: the
+   * amount is not editable from this screen). Members not listed are left
+   * untouched (no row = still unpaid); a member ALREADY marked paid stays
+   * paid even if re-submitted — this screen can only ever confirm a
+   * payment, never revert one (§20: the safest of the three options offered
+   * — reverting a validated payment is a distinct "correction" action, not
+   * built here since nothing requested it). */
+  async recordContributions(input: { groupId: string; tourId: string; memberIds: string[] }): Promise<Contribution[]> {
     await delay();
-    const existingIndex = contributions.findIndex(
-      (c) => c.groupId === input.groupId && c.cycleId === input.cycleId && c.memberId === input.memberId,
-    );
-    const previousContribution = existingIndex >= 0 ? contributions[existingIndex] : null;
-    const contribution: Contribution = {
-      id: existingIndex >= 0 ? contributions[existingIndex].id : genId('ct'),
-      groupId: input.groupId,
-      cycleId: input.cycleId,
-      memberId: input.memberId,
-      amount: input.amount,
-      status: input.status,
-      reference: existingIndex >= 0 ? contributions[existingIndex].reference : generateReference(),
-      note: input.note,
-      paidAt: input.status === 'paid' ? new Date().toISOString() : undefined,
-      createdAt: existingIndex >= 0 ? contributions[existingIndex].createdAt : new Date().toISOString(),
-    };
-    if (existingIndex >= 0) contributions[existingIndex] = contribution;
-    else contributions.unshift(contribution);
+    const tour = getToursForGroup(input.groupId).find((t) => t.id === input.tourId);
+    if (!tour) throw new Error('Tour introuvable.');
+    const now = new Date().toISOString();
+    const recorded: Contribution[] = [];
 
-    const member = memberships.find((m) => m.id === input.memberId);
-    activityEvents.unshift({
-      id: genId('a'),
-      type: 'contribution_added',
-      title: previousContribution ? 'Cotisation corrigée' : input.status === 'paid' ? 'Paiement de cotisation validé' : 'Cotisation enregistrée en attente',
-      description:
-        previousContribution
-          ? `Correction manuelle : ${previousContribution.status === 'paid' ? 'payé' : 'non payé'} (${formatFcfa(previousContribution.amount)}) → ${input.status === 'paid' ? 'payé' : 'non payé'} (${formatFcfa(input.amount)}).`
-          : input.status === 'paid'
-          ? `${member?.displayName ?? 'Un membre'} a payé ${formatFcfa(input.amount)}.`
-          : `Paiement de ${formatFcfa(input.amount)} enregistré comme non payé pour ${member?.displayName ?? 'un membre'}.`,
-      groupId: input.groupId,
-      userName: member?.displayName,
-      amount: input.amount,
-      at: new Date().toISOString(),
-    });
-    return contribution;
+    for (const memberId of input.memberIds) {
+      const existingIndex = contributions.findIndex((c) => c.groupId === input.groupId && c.tourId === input.tourId && c.memberId === memberId);
+      if (existingIndex >= 0 && contributions[existingIndex].status === 'paid') {
+        recorded.push(contributions[existingIndex]);
+        continue;
+      }
+      const member = memberships.find((m) => m.id === memberId);
+      const contribution: Contribution = {
+        id: existingIndex >= 0 ? contributions[existingIndex].id : genId('ct'),
+        groupId: input.groupId,
+        tourId: input.tourId,
+        memberId,
+        amount: tour.expectedAmountPerMember,
+        status: 'paid',
+        reference: existingIndex >= 0 ? contributions[existingIndex].reference : generateReference(),
+        paidAt: now,
+        createdAt: existingIndex >= 0 ? contributions[existingIndex].createdAt : now,
+      };
+      if (existingIndex >= 0) contributions[existingIndex] = contribution;
+      else contributions.unshift(contribution);
+      recorded.push(contribution);
+
+      activityEvents.unshift({
+        id: genId('a'),
+        type: 'contribution_added',
+        title: 'Paiement de cotisation validé',
+        description: `${member?.displayName ?? 'Un membre'} a payé ${formatFcfa(tour.expectedAmountPerMember)} (Tour ${tour.tourNumber}).`,
+        groupId: input.groupId,
+        userName: member?.displayName,
+        amount: tour.expectedAmountPerMember,
+        at: now,
+      });
+    }
+    return recorded;
   },
 
-  /** Admin marks the current beneficiary as paid out and advances the rotation to the next member. */
+  /** Admin confirms the current beneficiary received the cagnotte and moves
+   * the rotation pointer to the next tour. Loops forever — reaching the
+   * last position of a loop simply starts the next one (§4), there is no
+   * "tontine finished" state to reach anymore. */
   async advanceRound(groupId: string): Promise<void> {
     await delay();
     const group = groups.find((g) => g.id === groupId);
     if (!group) return;
-    const members = memberships.filter((m) => m.groupId === groupId && m.status === 'active');
-    const current = members.find((m) => m.position === (group.currentRound ?? 1));
-    if (current) current.hasReceivedPayout = true;
-
-    const totalRounds = members.length;
-    const nextRound = (group.currentRound ?? 1) + 1;
-
-    if (nextRound > totalRounds) {
-      group.tontineStatus = 'completed';
-      activityEvents.unshift({
-        id: genId('a'),
-        type: 'cycle_completed',
-        title: 'Cycle terminé',
-        description: `Tous les membres de ${group.name} ont reçu la cagnotte — le cycle est terminé.`,
-        groupId,
-        at: new Date().toISOString(),
-      });
-      return;
-    }
-
-    group.currentRound = nextRound;
-    const next = members.find((m) => m.position === nextRound);
+    const nextTourNumber = (group.currentRound ?? 1) + 1;
+    group.currentRound = nextTourNumber;
+    ensureToursGenerated(groupId, nextTourNumber);
+    const nextTour = getTour(groupId, nextTourNumber);
+    const beneficiary = nextTour ? memberships.find((m) => m.id === nextTour.beneficiaryMemberId) : null;
     activityEvents.unshift({
       id: genId('a'),
       type: 'order_updated',
       title: 'Tour suivant',
-      description: `${next?.displayName ?? 'Le prochain membre'} est maintenant bénéficiaire de ${group.name}.`,
+      description: `${beneficiary?.displayName ?? 'Le prochain membre'} est maintenant bénéficiaire de ${group.name} (Tour ${nextTourNumber}).`,
       groupId,
-      userName: next?.displayName,
+      userName: beneficiary?.displayName,
       at: new Date().toISOString(),
     });
   },

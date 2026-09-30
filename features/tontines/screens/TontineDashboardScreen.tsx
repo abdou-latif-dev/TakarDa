@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { Card } from '@/components/ui/Card';
-import { MemberRow } from '@/components/ui/MemberRow';
+import { MemberStatusCard } from '@/components/tontine/MemberStatusCard';
 import { PrimaryButton, SecondaryButton, IconButton } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -30,7 +30,7 @@ export function TontineDashboardScreen() {
     fetchSummary(groupId);
   }, [groupId, fetchSummary]);
 
-  if (summaryStatus[groupId] !== 'success' || !summary) {
+  if (summaryStatus[groupId] !== 'success' || !summary || !summary.currentTour) {
     return (
       <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
         <AppHeader showBack />
@@ -41,8 +41,9 @@ export function TontineDashboardScreen() {
     );
   }
 
-  const paidRatio = summary.members.length > 0 ? summary.paidCount / summary.members.length : 0;
-  const dueDate = summary.cycle ? formatLongDate(new Date(summary.cycle.dueDate)) : '—';
+  const tour = summary.currentTour;
+  const paidRatio = summary.totalMembers > 0 ? summary.paidCount / summary.totalMembers : 0;
+  const tourDate = formatLongDate(new Date(tour.scheduledDate));
 
   const onAdvanceRound = () => {
     Alert.alert(
@@ -68,7 +69,7 @@ export function TontineDashboardScreen() {
   const onDelete = () => {
     Alert.alert(
       'Supprimer cette tontine',
-      `"${group?.name}" et toutes ses données (membres, cotisations, historique) seront définitivement supprimés. Continuer ?`,
+      `"${group?.name}" et toutes ses données (membres, tours, cotisations, historique) seront définitivement supprimés. Continuer ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -95,7 +96,9 @@ export function TontineDashboardScreen() {
         <View className="flex-row items-start justify-between gap-3">
           <View className="flex-1">
             <DisplayText numberOfLines={2} className="text-2xl">{group?.name}</DisplayText>
-            <BodyMdText>{summary.cycle?.label ?? 'Cycle en cours'}</BodyMdText>
+            <BodyMdText>
+              {summary.totalMembers} membres · {formatFcfa(tour.expectedAmountPerMember)} / tour
+            </BodyMdText>
           </View>
           <IconButton icon="edit" onPress={() => router.push(`/tontine/create?groupId=${groupId}`)} />
         </View>
@@ -120,64 +123,96 @@ export function TontineDashboardScreen() {
         </View>
 
         <Card className="gap-4">
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-primary-soft">
-                <MaterialIcons name="sync" size={20} color={Colors.primary} />
-              </View>
-              <View className="flex-1">
-                <LabelText>
-                  Prochain bénéficiaire · Tour {summary.currentRound} / {summary.totalRounds}
-                </LabelText>
-                <HeadlineText numberOfLines={2} className="text-lg">{summary.nextBeneficiary?.displayName ?? '—'}</HeadlineText>
-              </View>
+          <View className="flex-row items-center gap-3">
+            <View className="h-10 w-10 items-center justify-center rounded-full bg-primary-soft">
+              <MaterialIcons name="sync" size={20} color={Colors.primary} />
+            </View>
+            <View className="flex-1">
+              <LabelText>
+                Boucle {tour.cycleNumber} · Tour {tour.positionInCycle} / {summary.totalMembers}
+              </LabelText>
+              <HeadlineText numberOfLines={2} className="text-lg">{summary.nextBeneficiary?.displayName ?? '—'} reçoit</HeadlineText>
             </View>
           </View>
-          <View className="flex-row gap-3">
-            <View className="flex-1 gap-0.5">
-              <LabelText>Montant prévu</LabelText>
-              <HeadlineText className="text-lg">{formatFcfa(summary.totalExpected)}</HeadlineText>
+
+          {/* Progress within the current loop — Tour 1 ✓, Tour 2 ✓, Tour 3 ●, ... (§25) */}
+          <View className="flex-row flex-wrap gap-2">
+            {Array.from({ length: summary.totalMembers }).map((_, i) => {
+              const positionInCycle = i + 1;
+              const isDone = positionInCycle < tour.positionInCycle;
+              const isCurrent = positionInCycle === tour.positionInCycle;
+              return (
+                <View
+                  key={positionInCycle}
+                  className="h-7 w-7 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: isDone ? Colors.primary : isCurrent ? Colors.primarySoft : Colors.surfaceContainer,
+                    borderWidth: isCurrent ? 1.5 : 0,
+                    borderColor: Colors.primary,
+                  }}>
+                  {isDone ? (
+                    <MaterialIcons name="check" size={14} color={Colors.textOnPrimary} />
+                  ) : (
+                    <LabelText className={isCurrent ? 'font-inter-semibold text-primary-dark' : undefined}>{positionInCycle}</LabelText>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+
+          <View className="flex-row flex-wrap gap-4">
+            <View className="gap-0.5">
+              <LabelText>Attendu</LabelText>
+              <HeadlineText className="text-lg">{formatFcfa(summary.expectedTotal)}</HeadlineText>
             </View>
-            <View className="flex-1 gap-0.5">
-              <LabelText>Échéance</LabelText>
-              <HeadlineText className="text-lg">{dueDate}</HeadlineText>
+            <View className="gap-0.5">
+              <LabelText>Collecté</LabelText>
+              <HeadlineText className="text-lg">{formatFcfa(summary.collected)}</HeadlineText>
+            </View>
+            <View className="gap-0.5">
+              <LabelText>Reste</LabelText>
+              <HeadlineText className="text-lg">{formatFcfa(summary.remaining)}</HeadlineText>
             </View>
           </View>
-          <ProgressBar progress={summary.progress} />
+          <View className="gap-2">
+            <ProgressBar progress={paidRatio} />
+            <LabelText className="font-inter-semibold text-text-primary">
+              {summary.paidCount} / {summary.totalMembers} membres · {tourDate}
+            </LabelText>
+          </View>
+
+          {summary.currentLoop && (
+            <View className="gap-1 rounded-md border border-border bg-background-secondary p-3">
+              <LabelText>Boucle {summary.currentLoop.cycleNumber}</LabelText>
+              <BodyMdText>
+                {formatLongDate(summary.currentLoop.startDate)} → {formatLongDate(summary.currentLoop.endDate)}
+              </BodyMdText>
+              {summary.nextLoop && (
+                <>
+                  <LabelText className="mt-1">Boucle suivante</LabelText>
+                  <BodyMdText>
+                    {formatLongDate(summary.nextLoop.startDate)} → {formatLongDate(summary.nextLoop.endDate)}
+                  </BodyMdText>
+                </>
+              )}
+            </View>
+          )}
+
           <View className="flex-row flex-wrap gap-3">
             <SecondaryButton fullWidth={false} multilineLabel className="min-w-[48%] flex-1 px-2" label="Ordre de passage" icon="swap-vert" onPress={() => router.push(`/group/${groupId}/order`)} />
             <PrimaryButton fullWidth={false} multilineLabel className="min-w-[48%] flex-1 px-2" label="Marquer reçu" icon="check-circle" loading={advancing} onPress={onAdvanceRound} />
           </View>
         </Card>
 
-        <View className="gap-3">
-          <Card className="gap-4">
-            <View className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-primary-soft">
-                <MaterialIcons name="account-balance-wallet" size={20} color={Colors.primary} />
-              </View>
-              <LabelText>Collecté ce mois</LabelText>
-            </View>
-            <HeadlineText className="text-3xl">{formatFcfa(summary.totalCollected)}</HeadlineText>
-            <View className="gap-2">
-              <LabelText>Progression des paiements</LabelText>
-              <ProgressBar progress={paidRatio} />
-              <LabelText className="font-inter-semibold text-text-primary">
-                {summary.paidCount} / {summary.members.length} membres ont payé
-              </LabelText>
-            </View>
+        <View className="flex-row gap-3">
+          <Card className="flex-1 gap-1">
+            <LabelText>Cotisations</LabelText>
+            <HeadlineText className="text-lg">{formatFcfa(summary.collected)}</HeadlineText>
           </Card>
-
-          <View className="flex-row gap-3">
-            <Card className="flex-1 gap-1">
-              <LabelText>Cotisations</LabelText>
-              <HeadlineText className="text-lg">{formatFcfa(summary.totalCollected)}</HeadlineText>
-            </Card>
-            <Card className="flex-1 gap-1 border-error-container bg-error-container/10">
-              <LabelText>Retards</LabelText>
-              <HeadlineText className="text-lg text-error">{summary.lateCount}</HeadlineText>
-            </Card>
-          </View>
+          <Card className="flex-1 gap-1 border-error-container bg-error-container/10">
+            <LabelText>Retards</LabelText>
+            <HeadlineText className="text-lg text-error">{summary.lateCount}</HeadlineText>
+          </Card>
         </View>
 
         <View className="gap-3">
@@ -186,16 +221,16 @@ export function TontineDashboardScreen() {
             action="Voir tout"
             onAction={() => router.push(`/group/${groupId}/tontine/active-members`)}
           />
-          <View className="rounded-lg border border-border bg-surface px-gutter-card shadow-soft">
-            {summary.members.slice(0, 5).map((member, i) => (
-              <View key={member.id} className={i < 4 ? 'border-b border-border' : undefined}>
-                <MemberRow
-                  name={member.displayName}
-                  accountType={member.accountType}
-                  trailingText={formatFcfa(summary.cycle?.amountExpectedPerMember ?? 10000)}
-                  status={summary.statusByMember[member.id] ?? 'pending'}
-                />
-              </View>
+          <View className="gap-3">
+            {summary.memberStatuses.slice(0, 5).map((s) => (
+              <MemberStatusCard
+                key={s.member.id}
+                position={s.member.position ?? 0}
+                name={s.member.displayName}
+                accountType={s.member.accountType}
+                amount={tour.expectedAmountPerMember}
+                status={s.status}
+              />
             ))}
           </View>
         </View>

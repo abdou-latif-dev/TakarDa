@@ -3,18 +3,17 @@ import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/ui/AppHeader';
-import { MemberRow } from '@/components/ui/MemberRow';
+import { MemberStatusCard } from '@/components/tontine/MemberStatusCard';
 import { EmptyState, LoadingState } from '@/components/ui/States';
-import { LabelText } from '@/components/ui/Typography';
+import { BodyMdText } from '@/components/ui/Typography';
 import { formatFcfa, formatLongDate } from '@/utils/format';
 import { useTontineStore } from '@/store/tontineStore';
 
-/** Full "Ordre | Membre | Montant | État | Échéance" table for the current
- * cycle — reached from the Dashboard's "Membres" → "Voir tout". Sourced
- * entirely from tontineStore's summary (already the single source of truth
- * for position + derived payment status), not a separate activity-tracking
- * concept — guest members without a FormEase account have no "last active"
- * signal to show anyway. */
+/** Full member list for the tontine's CURRENT tour — reached from the
+ * Dashboard's "Membres" → "Voir tout". One vertical card per member (§21/§22:
+ * a dense horizontal row with name + badge + amount + status all fighting
+ * for space reads badly on a small Android phone), always in rotation order
+ * (§33 — never reordered by who has or hasn't paid). */
 export function ActiveMembersScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const { summaries, summaryStatus, fetchSummary } = useTontineStore();
@@ -24,36 +23,32 @@ export function ActiveMembersScreen() {
   }, [groupId, fetchSummary]);
 
   const summary = summaries[groupId];
-  const dueDate = summary?.cycle ? formatLongDate(new Date(summary.cycle.dueDate)) : '—';
-  const amount = summary?.cycle?.amountExpectedPerMember;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Membres" showBack />
-      <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerClassName="gap-4 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         {summaryStatus[groupId] !== 'success' && <LoadingState />}
-        {summaryStatus[groupId] === 'success' && summary && summary.members.length === 0 && (
+        {summaryStatus[groupId] === 'success' && summary?.currentTour && (
+          <BodyMdText>
+            Tour {summary.currentTour.tourNumber} · {formatLongDate(new Date(summary.currentTour.scheduledDate))} ·{' '}
+            {formatFcfa(summary.currentTour.expectedAmountPerMember)} / membre
+          </BodyMdText>
+        )}
+        {summary && summary.members.length === 0 && (
           <EmptyState icon="group" title="Aucun membre" description="Ajoutez des membres pour démarrer la rotation." />
         )}
-        {summary && summary.members.length > 0 && (
-          <View className="rounded-lg border border-border bg-surface px-gutter-card shadow-soft">
-            {summary.members.map((member, i) => (
-              <View
-                key={member.id}
-                className={`flex-row items-center gap-3 ${i < summary.members.length - 1 ? 'border-b border-border' : ''}`}>
-                <View className="h-7 w-7 items-center justify-center rounded-full bg-primary-soft">
-                  <LabelText className="font-inter-semibold text-primary-dark">{member.position ?? i + 1}</LabelText>
-                </View>
-                <View className="flex-1">
-                  <MemberRow
-                    name={member.displayName}
-                    accountType={member.accountType}
-                    subtitle={`Échéance : ${dueDate}`}
-                    trailingText={typeof amount === 'number' ? formatFcfa(amount) : undefined}
-                    status={summary.statusByMember[member.id] ?? 'pending'}
-                  />
-                </View>
-              </View>
+        {summary?.currentTour && (
+          <View className="gap-3">
+            {summary.memberStatuses.map((s) => (
+              <MemberStatusCard
+                key={s.member.id}
+                position={s.member.position ?? 0}
+                name={s.member.displayName}
+                accountType={s.member.accountType}
+                amount={summary.currentTour!.expectedAmountPerMember}
+                status={s.status}
+              />
             ))}
           </View>
         )}

@@ -24,13 +24,30 @@ function ReceiptRow({ label, value, mono }: { label: string; value: string; mono
   );
 }
 
+/**
+ * Reçu de cotisation pour UN membre sur UN tour. Historique : construite
+ * pour l'ancien flux "Cotisation +" à un seul membre ; ce flux confirme
+ * désormais plusieurs membres d'un coup (§19-20 de l'audit Tour/Boucle,
+ * 2026-09-30) et ne redirige plus automatiquement ici après
+ * "Enregistrer" — pas de nouvelle demande pour un reçu multi-membres, donc
+ * rien n'a été inventé pour la remplacer. La fonctionnalité (partage/
+ * copie du reçu) reste intacte et fonctionnelle si cet écran est atteint
+ * avec ?groupId&tourNumber&memberId.
+ */
 export function ContributionSuccessScreen() {
-  const { groupId, contributionId } = useLocalSearchParams<{ groupId: string; contributionId: string }>();
+  const { groupId, tourNumber, memberId } = useLocalSearchParams<{ groupId: string; tourNumber: string; memberId: string }>();
   const group = useGroupStore((s) => s.groups.find((g) => g.id === groupId));
-  const members = useGroupStore((s) => s.members[groupId]) ?? [];
-  const history = useTontineStore((s) => s.history[groupId]) ?? [];
-  const contribution = history.find((c) => c.id === contributionId);
-  const member = members.find((m) => m.id === contribution?.memberId);
+  const key = `${groupId}:${tourNumber}`;
+  const summary = useTontineStore((s) => s.tourSummaries[key]);
+  const fetchTourSummary = useTontineStore((s) => s.fetchTourSummary);
+
+  useEffect(() => {
+    if (groupId && tourNumber) fetchTourSummary(groupId, Number(tourNumber));
+  }, [groupId, tourNumber, fetchTourSummary]);
+
+  const memberStatus = summary?.memberStatuses.find((s) => s.member.id === memberId);
+  const contribution = memberStatus?.contribution;
+  const member = memberStatus?.member;
 
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});

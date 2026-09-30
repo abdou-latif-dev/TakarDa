@@ -1,12 +1,16 @@
-// Explicitly opt-in demo data for the Tontine walkthrough ("TakarDa — Tontine
-// Étape 6"). Never created automatically — only when the user taps the
-// clearly-labelled "Tontine de démonstration" action. Built entirely from the
-// same real service calls a real user's actions go through (createTontine /
-// addGuestMember / addContribution), so the result is a genuine tontine:
+// Explicitly opt-in demo data for the Tontine walkthrough. Never created
+// automatically — only when the user taps the clearly-labelled "Tontine de
+// démonstration" action. Built entirely from the same real service calls a
+// real user's actions go through (createTontine / addGuestMember /
+// recordContributions / advanceRound), so the result is a genuine tontine:
 // fully persisted, fully editable, and deletable via the normal "Supprimer"
-// flow on the dashboard — nothing here bypasses the data model or lives
-// outside of it. The name and the 5 member names make it self-evidently a
-// demo rather than a real user's data.
+// flow on the dashboard. Reproduces exactly the reference scenario from the
+// Tour/Boucle brief (2026-09-30, §3/§39/§52): 5 membres, 25 000 FCFA,
+// hebdomadaire à partir du 7 octobre 2026, boucle 1 = Koffi/Ama/Yao/Sena/
+// Komlan aux 07/10, 14/10, 21/10, 28/10, 04/11 — arrêtée au Tour 3 (Yao)
+// avec Koffi/Ama/Sena déjà payés pour CE tour (Koffi et Ama payant une
+// SECONDE fois, après avoir déjà reçu leur propre tour — exactement le cas
+// que le bug fixé par le nouveau modèle Tour devait cesser d'écraser).
 
 import { groupService } from './groupService';
 import { tontineService } from './tontineService';
@@ -14,33 +18,22 @@ import type { Group } from '@/types/entities';
 
 export const DEMO_TONTINE_NAME = 'Solidarité 2026 (démo)';
 
-// Ordre d'inscription = ordre de passage (orderMethod: 'join_order') — Koffi
-// et Ama ont déjà reçu la cagnotte des tours 1 et 2 (2x advanceRound ci-dessous),
-// Yao est donc le prochain bénéficiaire, exactement comme dans le scénario demandé.
-const DEMO_MEMBERS: { firstName: string; lastName: string; paid: boolean }[] = [
-  { firstName: 'Koffi', lastName: 'Mensah', paid: true },
-  { firstName: 'Ama', lastName: 'Dossou', paid: true },
-  { firstName: 'Yao', lastName: 'Kossi', paid: false },
-  { firstName: 'Sena', lastName: 'Afi', paid: false },
-  { firstName: 'Komlan', lastName: 'Adjo', paid: false },
-];
+const DEMO_MEMBERS = [
+  { firstName: 'Koffi', lastName: 'Mensah' },
+  { firstName: 'Ama', lastName: 'Dossou' },
+  { firstName: 'Yao', lastName: 'Kossi' },
+  { firstName: 'Sena', lastName: 'Afi' },
+  { firstName: 'Komlan', lastName: 'Adjo' },
+] as const;
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-
-/** Creates "Solidarité 2026" — 25 000 FCFA/mois, 5 membres invités dans
- * l'ordre d'inscription (join_order), 125 000 FCFA au total (aucun "Vous" —
- * voir includeSelfAsMember). Koffi et Ama ont déjà reçu leur tour et sont à
- * jour sur la cotisation en cours ; Yao/Sena/Komlan n'ont pas encore payé —
- * la prochaine échéance est fixée dans le futur pour qu'ils s'affichent
- * "En attente", pas "En retard", juste après la création. */
 export async function seedDemoTontine(): Promise<Group> {
-  const dueDate = new Date(Date.now() + THIRTY_DAYS_MS);
+  const startDate = new Date(2026, 9, 7); // 7 octobre 2026
 
   const group = await groupService.createTontine({
     name: DEMO_TONTINE_NAME,
     contributionAmount: 25000,
-    frequency: 'monthly',
-    startDate: dueDate.toISOString(),
+    frequency: 'weekly',
+    startDate: startDate.toISOString(),
     orderMethod: 'join_order',
     includeSelfAsMember: false,
   });
@@ -49,25 +42,21 @@ export async function seedDemoTontine(): Promise<Group> {
   for (const m of DEMO_MEMBERS) {
     members.push(await groupService.addGuestMember(group.id, { firstName: m.firstName, lastName: m.lastName }));
   }
+  const [koffi, ama, , sena] = members; // Yao (index 2) and Komlan (index 4) stay unpaid
+
+  // Tour 1 (Koffi) and Tour 2 (Ama) already received their payout — current
+  // tour becomes 3 (Yao), matching the brief's target demo state exactly.
+  await tontineService.advanceRound(group.id);
+  await tontineService.advanceRound(group.id);
 
   const summary = await tontineService.getSummary(group.id);
-  if (summary.cycle) {
-    for (let i = 0; i < members.length; i++) {
-      if (!DEMO_MEMBERS[i].paid) continue;
-      await tontineService.addContribution({
-        groupId: group.id,
-        cycleId: summary.cycle.id,
-        memberId: members[i].id,
-        amount: 25000,
-        status: 'paid',
-      });
-    }
+  if (summary?.currentTour) {
+    await tontineService.recordContributions({
+      groupId: group.id,
+      tourId: summary.currentTour.id,
+      memberIds: [koffi.id, ama.id, sena.id],
+    });
   }
-
-  // Koffi (tour 1) puis Ama (tour 2) ont déjà reçu la cagnotte — le tour
-  // courant passe donc à 3 (Yao).
-  await tontineService.advanceRound(group.id);
-  await tontineService.advanceRound(group.id);
 
   return group;
 }

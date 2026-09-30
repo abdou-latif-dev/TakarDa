@@ -7,12 +7,26 @@ import {
   groups,
   memberships,
   tontineCycles,
+  tours,
   users,
 } from './db';
-import { formatMonthYear } from '@/utils/format';
 import type { Group, Membership, TontineFrequency, TontineOrderMethod } from '@/types/entities';
 
-/** Re-derives every active member's rotation position from the tontine's chosen ordering method. */
+/** Re-derives every active member's rotation position from the tontine's
+ * chosen ordering method.
+ *
+ * 'join_order' fully re-sorts every time (cheap, and always correct: it's
+ * purely a function of joinedAt, so re-running it is idempotent).
+ *
+ * 'draw' and 'manual' only ever BACKFILL members that don't have a position
+ * yet — existing positions are never touched. This matters for 'draw'
+ * specifically (a real bug fixed here, found during the Tour/Boucle audit,
+ * 2026-09-30): this function runs on every addGuestMember/addFormeaseMember
+ * call, so re-shuffling ALL active members every time a new one joined was
+ * re-randomizing the whole rotation on every addition — not "draw once,
+ * remember it" as required. Now the draw only ever decides where a NEWLY
+ * added member lands among the remaining slots; already-drawn positions are
+ * permanent from the moment they're first assigned. */
 function recomputePositions(groupId: string) {
   const group = groups.find((g) => g.id === groupId);
   if (!group || group.kind !== 'tontine') return;
@@ -20,16 +34,15 @@ function recomputePositions(groupId: string) {
     .filter((m) => m.groupId === groupId && m.status === 'active')
     .sort((a, b) => (a.joinedAt < b.joinedAt ? -1 : 1));
 
-  if (group.orderMethod === 'manual') {
-    // Leave existing positions alone; only backfill members that never got one.
+  if (group.orderMethod === 'manual' || group.orderMethod === 'draw') {
     const withoutPosition = active.filter((m) => !m.position);
     const maxPosition = Math.max(0, ...active.map((m) => m.position ?? 0));
-    withoutPosition.forEach((m, i) => (m.position = maxPosition + i + 1));
+    const toPlace = group.orderMethod === 'draw' ? [...withoutPosition].sort(() => Math.random() - 0.5) : withoutPosition;
+    toPlace.forEach((m, i) => (m.position = maxPosition + i + 1));
     return;
   }
 
-  const order = group.orderMethod === 'draw' ? [...active].sort(() => Math.random() - 0.5) : active;
-  order.forEach((m, i) => (m.position = i + 1));
+  active.forEach((m, i) => (m.position = i + 1));
 }
 
 export interface CreateTontineInput {
@@ -105,14 +118,9 @@ export const groupService = {
         position: 1,
       });
     }
-    tontineCycles.push({
-      id: genId('c'),
-      groupId: group.id,
-      label: `Cycle de ${formatMonthYear(new Date(input.startDate))}`,
-      amountExpectedPerMember: input.contributionAmount,
-      dueDate: input.startDate,
-      createdAt: now,
-    });
+    // No TontineCycle is created here anymore — tours are generated lazily
+    // by tontineTours.ensureToursGenerated() the first time a screen asks
+    // for one (see the Tour/Boucle audit, 2026-09-30).
     activityEvents.unshift({
       id: genId('a'),
       type: 'group_created',
@@ -126,9 +134,11 @@ export const groupService = {
 
   /** Edits the tontine's own info (name/cotisation/fréquence) — never the
    * rotation order or membership, which stay on their own dedicated flows
-   * (Ordre de passage / Ajouter un membre). Keeps the active cycle's
-   * `amountExpectedPerMember` in sync so a changed cotisation is reflected
-   * immediately in the next-beneficiary payout total. */
+   * (Ordre de passage / Ajouter un membre). Deliberately does NOT touch any
+   * already-generated Tour: `contributionAmount` only ever becomes each
+   * FUTURE tour's `expectedAmountPerMember`, frozen at the moment that tour
+   * is generated — already-generated tours (past or the current one) keep
+   * whatever amount they were created with (§8 of the Tour/Boucle audit). */
   async updateTontine(groupId: string, input: { name: string; contributionAmount: number; frequency: TontineFrequency }): Promise<Group> {
     await delay();
     const group = groups.find((g) => g.id === groupId);
@@ -137,8 +147,6 @@ export const groupService = {
     group.contributionAmount = input.contributionAmount;
     group.frequency = input.frequency;
     group.updatedAt = new Date().toISOString();
-    const cycle = tontineCycles.find((c) => c.groupId === groupId);
-    if (cycle) cycle.amountExpectedPerMember = input.contributionAmount;
     activityEvents.unshift({
       id: genId('a'),
       type: 'group_updated',
@@ -234,7 +242,7 @@ export const groupService = {
     });
   },
 
-  /** Deletes a tontine and every record tied to it (members, cotisations, cycles). */
+  /** Deletes a tontine and every record tied to it (members, tours, cotisations, legacy cycle). */
   async deleteTontine(groupId: string): Promise<void> {
     await delay();
     const index = groups.findIndex((g) => g.id === groupId);
@@ -245,6 +253,9 @@ export const groupService = {
     }
     for (let i = contributions.length - 1; i >= 0; i--) {
       if (contributions[i].groupId === groupId) contributions.splice(i, 1);
+    }
+    for (let i = tours.length - 1; i >= 0; i--) {
+      if (tours[i].groupId === groupId) tours.splice(i, 1);
     }
     for (let i = tontineCycles.length - 1; i >= 0; i--) {
       if (tontineCycles[i].groupId === groupId) tontineCycles.splice(i, 1);

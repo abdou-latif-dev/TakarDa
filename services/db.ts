@@ -26,6 +26,7 @@ import type {
   Submission,
   Tool,
   TontineCycle,
+  Tour,
   ToolMember,
   User,
   WorkflowRule,
@@ -41,7 +42,11 @@ export const users: User[] = [
 
 export const groups: Group[] = [];
 export const memberships: Membership[] = [];
+/** LEGACY — kept only so old persisted snapshots still hydrate into
+ * something readable during migration (services/tontineMigration.ts). No
+ * code creates new rows here anymore; see `tours` below. */
 export const tontineCycles: TontineCycle[] = [];
+export const tours: Tour[] = [];
 export const contributions: Contribution[] = [];
 export const forms: FormDefinition[] = [];
 export const submissions: Submission[] = [];

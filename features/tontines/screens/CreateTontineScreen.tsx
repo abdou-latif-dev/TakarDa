@@ -6,12 +6,20 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { Card } from '@/components/ui/Card';
 import { TextField } from '@/components/ui/TextField';
+import { DateField } from '@/components/ui/DateField';
 import { PrimaryButton } from '@/components/ui/Button';
 import { SectionTitleText, LabelText, BodyMdText } from '@/components/ui/Typography';
 import { Colors } from '@/constants/theme';
 import { useGroupStore } from '@/store/groupStore';
-import { formatLongDate } from '@/utils/format';
+import { formatFcfa, formatLongDate } from '@/utils/format';
 import type { TontineFrequency, TontineOrderMethod } from '@/types/entities';
+
+const FREQUENCY_LABEL: Record<TontineFrequency, string> = {
+  daily: 'Quotidienne',
+  weekly: 'Hebdomadaire',
+  monthly: 'Mensuelle',
+  custom: 'Personnalisée',
+};
 
 const FREQUENCIES: { value: TontineFrequency; label: string }[] = [
   { value: 'daily', label: 'Quotidien' },
@@ -72,7 +80,7 @@ export function CreateTontineScreen() {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('10000');
   const [frequency, setFrequency] = useState<TontineFrequency>('weekly');
-  const [startDate] = useState(new Date());
+  const [startDate, setStartDate] = useState(new Date());
   const [orderMethod, setOrderMethod] = useState<TontineOrderMethod>('draw');
   const [submitting, setSubmitting] = useState(false);
 
@@ -156,12 +164,7 @@ export function CreateTontineScreen() {
                 ))}
               </View>
             </View>
-            {!isEditing && (
-              <View className="flex-row items-center gap-3 rounded-md border border-border bg-background-secondary p-3">
-                <MaterialIcons name="event" size={18} color={Colors.textSecondary} />
-                <LabelText className="text-text-primary">Début : {formatLongDate(startDate)}</LabelText>
-              </View>
-            )}
+            {!isEditing && <DateField label="Date de début" value={startDate} onChange={setStartDate} />}
           </Card>
 
           {!isEditing && (
@@ -183,6 +186,20 @@ export function CreateTontineScreen() {
                 ))}
               </View>
             </View>
+          )}
+
+          {!isEditing && name.trim() && (Number(amount) || 0) > 0 && (
+            <Card className="gap-2">
+              <SectionTitleText className="text-base">Résumé</SectionTitleText>
+              <LabelText>
+                {formatFcfa(Number(amount) || 0)} / membre / tour · {FREQUENCY_LABEL[frequency]}
+              </LabelText>
+              <LabelText>Début : {formatLongDate(startDate)}</LabelText>
+              <LabelText>
+                Ajoutez ensuite vos membres — le montant total par tour et la fin de la première boucle
+                s&apos;afficheront dès que vous en aurez ajouté au moins un.
+              </LabelText>
+            </Card>
           )}
         </ScrollView>
 

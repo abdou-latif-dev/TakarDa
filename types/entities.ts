@@ -67,10 +67,21 @@ export interface Membership {
   hasReceivedPayout?: boolean;
 }
 
-// ---- Tontine / contributions -----------------------------------------------
+// ---- Tontine / tours / contributions ----------------------------------------
+// A rotating tontine of N members repeats forever in loops of N "tours"
+// (Tontine — Tour/Boucle audit, 2026-09-30): Tontine → Tour → Contribution.
+// tour.tourNumber is a GLOBAL, ever-increasing counter (1, 2, 3... 11, 12...),
+// never reset per loop — "Boucle" (cycleNumber) and "position in the loop"
+// (positionInCycle) are both derived from it (see services/tontineTours.ts),
+// never stored redundantly.
 
 export type ContributionStatus = 'paid' | 'pending' | 'late';
 
+/** LEGACY — the pre-2026-09-30 model: exactly one of these ever existed per
+ * tontine, for its entire lifetime, regardless of how many rounds it went
+ * through. Superseded by `Tour` (below), which is created per-round. Kept
+ * only so `services/tontineMigration.ts` can recognize and read old stored
+ * data — nothing else should create or read TontineCycle rows going forward. */
 export interface TontineCycle {
   id: ID;
   groupId: ID;
@@ -80,10 +91,42 @@ export interface TontineCycle {
   createdAt: ISODateString;
 }
 
+/** One rotation round — one beneficiary, one scheduled date, one expected
+ * amount, frozen at the moment the tour is generated (see
+ * services/tontineTours.ts). Generated lazily, up to the tontine's current
+ * tour, never all at once — see ensureToursGenerated(). */
+export interface Tour {
+  id: ID;
+  groupId: ID;
+  /** 1-based, derived from tourNumber at generation time and then frozen —
+   * "Boucle 1", "Boucle 2"... */
+  cycleNumber: number;
+  /** 1-based, global, never resets — the sole ordering key. */
+  tourNumber: number;
+  /** 1-based position within its own loop (1..memberCountAtGeneration). */
+  positionInCycle: number;
+  /** Frozen at generation time — reordering members later only affects
+   * tours not yet generated (see ensureToursGenerated()), never this one. */
+  beneficiaryMemberId: ID;
+  scheduledDate: ISODateString;
+  /** Frozen at generation time — editing the tontine's contributionAmount
+   * later never rewrites an already-generated tour's expected amount. */
+  expectedAmountPerMember: number;
+  expectedTotalAmount: number;
+  createdAt: ISODateString;
+}
+
+/** Derived, never stored (same rule as Immobilier's lateness and the
+ * previous statusByMember derivation) — see services/tontineTours.ts's
+ * getTourStatus(). 'upcoming' folds together "not started" and "in
+ * progress but not due yet": nothing in the product requirements needs to
+ * tell those two apart today. */
+export type TourStatus = 'upcoming' | 'partial' | 'complete' | 'late';
+
 export interface Contribution {
   id: ID;
   groupId: ID;
-  cycleId: ID;
+  tourId: ID; // was cycleId — a member can now have one Contribution PER tour
   memberId: ID; // Membership.id
   amount: number;
   status: ContributionStatus;
