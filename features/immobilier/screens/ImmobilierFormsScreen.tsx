@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -14,8 +14,8 @@ export function ImmobilierFormsScreen() {
   const [tool, setTool] = useState<Tool | null>(null);
   const [entities, setEntities] = useState<EntityDefinition[]>([]);
   useEffect(() => {
-    ensureImmobilierTool().then(({ tool: ensured, bien, contrat, paiement, depense }) => {
-      setTool(ensured); setEntities([bien, contrat, paiement, depense]);
+    ensureImmobilierTool().then(({ tool: ensured, bien, logement, contrat, paiement, depense }) => {
+      setTool(ensured); setEntities([bien, logement, contrat, paiement, depense]);
     });
   }, []);
   return <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>

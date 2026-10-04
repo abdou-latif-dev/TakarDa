@@ -40,8 +40,9 @@ export function BienFormScreen() {
   const onSave = async () => {
     setSaving(true);
     try {
-      await createRecord({ entityDefinitionId: entityDefinition.id, toolId, values });
-      router.back();
+      const bien = await createRecord({ entityDefinitionId: entityDefinition.id, toolId, values });
+      // On entre directement dans le bien créé pour y ajouter ses logements.
+      router.replace(`/immobilier/${bien.id}`);
     } finally {
       setSaving(false);
     }

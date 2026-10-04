@@ -13,7 +13,7 @@ import { LabelText, SectionTitleText } from '@/components/ui/Typography';
 import { Colors } from '@/constants/theme';
 import { coreService } from '@/services/coreService';
 import { ensureFacturesTool } from '@/services/facturesService';
-import { ensureImmobilierTool } from '@/services/immobilierService';
+import { contratLabel, ensureImmobilierTool, loadImmobilierLookup, type ImmobilierLookup } from '@/services/immobilierService';
 import { saveReleve, type Participant, type ParticipantType } from '@/services/utilityBillingService';
 import type { EntityDefinition, RecordItem, Tool } from '@/types/entities';
 
@@ -35,6 +35,7 @@ export function RelevesScreen() {
   const [saved, setSaved] = useState<RecordItem[]>([]);
   const [biens, setBiens] = useState<RecordItem[]>([]);
   const [contratsByBien, setContratsByBien] = useState<Record<string, RecordItem[]>>({});
+  const [lookup, setLookup] = useState<ImmobilierLookup | null>(null);
   const [pickerRowId, setPickerRowId] = useState<string | null>(null);
   const [pickerBienId, setPickerBienId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,6 +46,7 @@ export function RelevesScreen() {
       const allBiens = await coreService.getRecords({ toolId: immoTool.id, entityDefinitionId: bien.id });
       setBiens(allBiens);
       const allContrats = await coreService.getRecords({ toolId: immoTool.id, entityDefinitionId: contrat.id });
+      setLookup(await loadImmobilierLookup());
       const grouped: Record<string, RecordItem[]> = {};
       for (const c of allContrats) {
         if (c.statusKey !== 'actif') continue;
@@ -155,7 +157,7 @@ export function RelevesScreen() {
                           <LabelText>Aucun contrat actif pour ce bien.</LabelText>
                         ) : (
                           (contratsByBien[pickerBienId] ?? []).map((c) => {
-                            const label = typeof c.values.locataire_nom === 'string' && c.values.locataire_nom ? c.values.locataire_nom : String(c.values.nom_logement ?? 'Locataire');
+                            const label = lookup ? contratLabel(c, lookup) : 'Locataire';
                             return (
                               <Chip
                                 key={c.id}

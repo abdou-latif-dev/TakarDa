@@ -1,0 +1,7 @@
+@"
+Host github-abdoulatif
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_rsa
+    IdentitiesOnly yes
+"@ | Set-Content -Path "$HOME\.ssh\config"

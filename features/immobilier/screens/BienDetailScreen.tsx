@@ -1,90 +1,84 @@
-import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Alert, ScrollView, useWindowDimensions, View } from 'react-native';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { Card } from '@/components/ui/Card';
-import { IconButton } from '@/components/ui/Button';
+import { IconButton, PrimaryButton, SecondaryButton } from '@/components/ui/Button';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { EmptyState, LoadingState } from '@/components/ui/States';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { DisplayText, BodyMdText, SectionTitleText, LabelText } from '@/components/ui/Typography';
-import { Colors } from '@/constants/theme';
+import { LogementCard } from '@/components/immobilier/LogementCard';
 import { formatFcfa } from '@/utils/format';
-import { coreService } from '@/services/coreService';
-import { ensureImmobilierTool, computeContratLateness } from '@/services/immobilierService';
-import { ensureFacturesTool } from '@/services/facturesService';
-import type { RecordItem } from '@/types/entities';
+import { deleteBienCascade, formatOccupancySummary, getBienDeletionImpact, loadBienOverview, type BienOverview } from '@/services/immobilierService';
 
-const FOURNISSEUR_LABEL: Record<string, string> = { ceet: 'CEET', tde: 'TDE', autre: 'Autre' };
-const FACTURE_PARTAGEE_STATUS_LABEL: Record<string, string> = { a_payer: 'À payer', partielle: 'Partielle', payee: 'Payée' };
-
+/** Le BIEN — point central de navigation : ses logements (occupés/vacants),
+ * ses dépenses. (CEET/TDE est un module séparé : rien ici.) Recharge à chaque retour sur l'écran
+ * (nouveau logement, locataire, paiement, dépense…). */
 export function BienDetailScreen() {
-  // Computed inside the component, not at module scope — a frozen
-  // module-level object here would capture whatever Colors.X was at import
-  // time and never update again for dark mode (see the Étape 4A theme audit).
-  const LATENESS_TONE: Record<string, string> = {
-    a_jour: Colors.success,
-    retard: Colors.error,
-    sans_paiement: Colors.textMuted,
-  };
   const { bienId } = useLocalSearchParams<{ bienId: string }>();
-  const [toolId, setToolId] = useState<string | null>(null);
-  const [bien, setBien] = useState<RecordItem | null>(null);
-  const [contrats, setContrats] = useState<RecordItem[]>([]);
-  const [paiements, setPaiements] = useState<RecordItem[]>([]);
-  const [depenses, setDepenses] = useState<RecordItem[]>([]);
-  const [facturesPartagees, setFacturesPartagees] = useState<RecordItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [overview, setOverview] = useState<BienOverview | null>(null);
+  const [error, setError] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const { width } = useWindowDimensions();
+  const wide = width >= 720;
 
-  const load = async () => {
-    const { tool, contrat, paiement, depense } = await ensureImmobilierTool();
-    setToolId(tool.id);
-    const b = await coreService.getRecord(bienId);
-    setBien(b);
-    const allContrats = await coreService.getRecords({ toolId: tool.id, entityDefinitionId: contrat.id });
-    setContrats(allContrats.filter((c) => c.values.bien === bienId));
-    const allPaiements = await coreService.getRecords({ toolId: tool.id, entityDefinitionId: paiement.id });
-    setPaiements(allPaiements);
-    const allDepenses = await coreService.getRecords({ toolId: tool.id, entityDefinitionId: depense.id });
-    setDepenses(allDepenses.filter((d) => d.values.bien === bienId));
-    // Le moteur de répartition CEET/TDE vit dans le Tool Factures (voir
-    // services/utilityBillingService.ts), partagé avec le module Factures.
-    const factures = await ensureFacturesTool();
-    const allFacturesPartagees = await coreService.getRecords({ toolId: factures.tool.id, entityDefinitionId: factures.facturePartageeDefinition.id });
-    setFacturesPartagees(allFacturesPartagees.filter((f) => f.values.bien === bienId));
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const load = useCallback(async () => {
+    try {
+      setOverview(await loadBienOverview(bienId));
+      setError(false);
+    } catch {
+      setError(true);
+    }
   }, [bienId]);
 
-  const onDeleteBien = () => {
-    if (!toolId) return;
-    Alert.alert('Supprimer ce bien', 'Le bien, ses contrats, dépenses et factures partagées seront définitivement supprimés. Continuer ?', [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Supprimer',
-        style: 'destructive',
-        onPress: async () => {
-          const contratIds = new Set(contrats.map((c) => c.id));
-          const factures = await ensureFacturesTool();
-          const allReleves = await coreService.getRecords({ toolId: factures.tool.id, entityDefinitionId: factures.releveDefinition.id });
-          for (const r of allReleves) if (r.values.participant_type === 'contrat' && contratIds.has(String(r.values.participant_id))) await coreService.deleteRecord(r.id);
-          const allParts = await coreService.getRecords({ toolId: factures.tool.id, entityDefinitionId: factures.partLocataireDefinition.id });
-          for (const p of allParts) if (facturesPartagees.some((f) => f.id === p.values.facture_partagee)) await coreService.deleteRecord(p.id);
-          for (const f of facturesPartagees) await coreService.deleteRecord(f.id);
-          for (const c of contrats) await coreService.deleteRecord(c.id);
-          for (const d of depenses) await coreService.deleteRecord(d.id);
-          await coreService.deleteRecord(bienId);
-          router.replace('/immobilier');
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const onDeleteBien = async () => {
+    const impact = await getBienDeletionImpact(bienId);
+    const parts = [
+      impact.logements ? `${impact.logements} logement${impact.logements > 1 ? 's' : ''}` : null,
+      impact.contrats ? `${impact.contrats} contrat${impact.contrats > 1 ? 's' : ''}` : null,
+      impact.paiements ? `${impact.paiements} paiement${impact.paiements > 1 ? 's' : ''}` : null,
+      impact.depenses ? `${impact.depenses} dépense${impact.depenses > 1 ? 's' : ''}` : null,
+      impact.facturesPartagees ? `${impact.facturesPartagees} facture${impact.facturesPartagees > 1 ? 's' : ''} partagée${impact.facturesPartagees > 1 ? 's' : ''}` : null,
+    ].filter(Boolean);
+    Alert.alert(
+      'Supprimer ce bien',
+      parts.length
+        ? `Seront définitivement supprimés avec ce bien : ${parts.join(', ')}. Cette action est irréversible. Continuer ?`
+        : 'Ce bien est vide. Le supprimer ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteBienCascade(bienId);
+              router.replace('/immobilier');
+            } finally {
+              setDeleting(false);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
-  if (loading || !bien) {
+  if (error) {
+    return (
+      <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
+        <AppHeader showBack />
+        <View className="px-page-margin">
+          <ErrorState onRetry={load} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!overview || !overview.bien) {
     return (
       <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
         <AppHeader showBack />
@@ -95,43 +89,56 @@ export function BienDetailScreen() {
     );
   }
 
+  const { bien, views, summary, depenses } = overview;
   const totalDepenses = depenses.reduce((sum, d) => sum + (typeof d.values.montant === 'number' ? d.values.montant : 0), 0);
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
-      <AppHeader showBack trailing={<IconButton icon="delete-outline" onPress={onDeleteBien} />} />
-      <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
+      <AppHeader showBack trailing={<IconButton icon="delete-outline" onPress={onDeleteBien} disabled={deleting} />} />
+      <ScrollView contentContainerClassName="w-full max-w-3xl gap-6 self-center px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         <View>
-          <DisplayText className="text-2xl">{String(bien.values.nom)}</DisplayText>
-          <BodyMdText>{String(bien.values.adresse)}</BodyMdText>
+          <DisplayText className="text-2xl" numberOfLines={2}>{String(bien.values.nom)}</DisplayText>
+          <BodyMdText numberOfLines={2}>{String(bien.values.adresse ?? '')}</BodyMdText>
+          <LabelText className="mt-2 font-inter-semibold text-text-primary">{formatOccupancySummary(summary)}</LabelText>
+        </View>
+
+        <View className="flex-row gap-3">
+          <SecondaryButton
+            fullWidth={false}
+            multilineLabel
+            className="flex-1 px-2"
+            label="Ajouter un logement"
+            icon="add"
+            onPress={() => router.push(`/immobilier/${bienId}/logement-new`)}
+          />
+          <PrimaryButton
+            fullWidth={false}
+            multilineLabel
+            className="flex-1 px-2"
+            label="Ajouter un locataire"
+            icon="person-add"
+            onPress={() => router.push(`/immobilier/${bienId}/contrat-new`)}
+          />
         </View>
 
         <View className="gap-3">
-          <SectionHeader title="Contrats / Locataires" action="Ajouter" onAction={() => router.push(`/immobilier/${bienId}/contrat-new`)} />
-          {contrats.length === 0 ? (
-            <EmptyState compact icon="description" title="Aucun contrat" description="Ajoutez un locataire pour ce bien." />
+          <SectionTitleText>Logements</SectionTitleText>
+          {views.length === 0 ? (
+            <EmptyState
+              compact
+              icon="meeting-room"
+              title="Aucun logement"
+              description="Ajoutez les chambres, appartements ou boutiques de ce bien."
+              actionLabel="Ajouter un logement"
+              onAction={() => router.push(`/immobilier/${bienId}/logement-new`)}
+            />
           ) : (
-            <View className="gap-3">
-              {contrats.map((c) => {
-                const lateness = computeContratLateness(c, paiements);
-                return (
-                  <Pressable
-                    key={c.id}
-                    onPress={() => router.push(`/immobilier/contrat/${c.id}`)}
-                    className="gap-2 rounded-xl border border-border bg-surface p-gutter-card shadow-soft active:opacity-90">
-                    <View className="flex-row items-center justify-between">
-                      <SectionTitleText numberOfLines={1}>{String(c.values.nom_logement ?? 'Logement')}</SectionTitleText>
-                      <LabelText style={{ color: LATENESS_TONE[lateness.key] }} className="font-inter-semibold">
-                        {lateness.key === 'retard' ? `${lateness.label} (${lateness.lateMonths} mois)` : lateness.label}
-                      </LabelText>
-                    </View>
-                    <LabelText>
-                      {c.values.locataire_nom ? String(c.values.locataire_nom) : 'Vacant'} ·{' '}
-                      {typeof c.values.loyer_mensuel === 'number' ? formatFcfa(c.values.loyer_mensuel) : '—'} / mois
-                    </LabelText>
-                  </Pressable>
-                );
-              })}
+            <View className="flex-row flex-wrap gap-3">
+              {views.map((view) => (
+                <View key={view.logement.id} style={{ width: wide ? '48.5%' : '100%' }}>
+                  <LogementCard view={view} onPress={() => router.push(`/immobilier/logement/${view.logement.id}`)} />
+                </View>
+              ))}
             </View>
           )}
         </View>
@@ -145,53 +152,28 @@ export function BienDetailScreen() {
               {depenses.map((d, i) => (
                 <View key={d.id}>
                   {i > 0 && <View className="h-px bg-border" />}
-                  <View className="flex-row items-center justify-between p-gutter-card">
+                  <View className="flex-row items-center gap-3 p-gutter-card">
                     <View className="flex-1">
                       <SectionTitleText className="text-base" numberOfLines={1}>
                         {String(d.values.libelle ?? '')}
                       </SectionTitleText>
-                      <LabelText>{d.values.date ? String(d.values.date) : ''}</LabelText>
+                      <LabelText numberOfLines={1}>{d.values.date ? String(d.values.date) : ''}</LabelText>
                     </View>
-                    <LabelText className="font-inter-semibold text-text-primary">
+                    <LabelText className="font-inter-semibold text-text-primary" numberOfLines={1}>
                       {typeof d.values.montant === 'number' ? formatFcfa(d.values.montant) : '—'}
                     </LabelText>
                   </View>
                 </View>
               ))}
               <View className="h-px bg-border" />
-              <View className="flex-row items-center justify-between p-gutter-card">
-                <LabelText className="font-inter-semibold text-text-primary">Total dépenses</LabelText>
-                <LabelText className="font-inter-semibold text-text-primary">{formatFcfa(totalDepenses)}</LabelText>
+              <View className="flex-row items-center gap-3 p-gutter-card">
+                <LabelText className="flex-1 font-inter-semibold text-text-primary">Total dépenses</LabelText>
+                <LabelText className="font-inter-semibold text-text-primary" numberOfLines={1}>{formatFcfa(totalDepenses)}</LabelText>
               </View>
             </Card>
           )}
         </View>
 
-        <View className="gap-3">
-          <SectionHeader title="Factures partagées" action="Ajouter" onAction={() => router.push(`/immobilier/${bienId}/facture-utility-new`)} />
-          {facturesPartagees.length === 0 ? (
-            <EmptyState compact icon="bolt" title="Aucune facture partagée" description="Répartissez une facture CEET/TDE entre les locataires de ce bien." />
-          ) : (
-            <View className="gap-3">
-              {facturesPartagees.map((f) => (
-                <Pressable
-                  key={f.id}
-                  onPress={() => router.push(`/immobilier/facture-utility/${f.id}`)}
-                  className="gap-2 rounded-xl border border-border bg-surface p-gutter-card shadow-soft active:opacity-90">
-                  <View className="flex-row items-center justify-between">
-                    <SectionTitleText numberOfLines={1}>
-                      {FOURNISSEUR_LABEL[String(f.values.fournisseur)] ?? String(f.values.fournisseur ?? '')} · {String(f.values.mois ?? '')}
-                    </SectionTitleText>
-                    <LabelText className="font-inter-semibold" style={{ color: f.statusKey === 'payee' ? Colors.success : Colors.warning }}>
-                      {FACTURE_PARTAGEE_STATUS_LABEL[f.statusKey ?? ''] ?? f.statusKey}
-                    </LabelText>
-                  </View>
-                  <LabelText>{typeof f.values.montant_total === 'number' ? formatFcfa(f.values.montant_total) : '—'}</LabelText>
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </View>
       </ScrollView>
     </SafeAreaView>
   );

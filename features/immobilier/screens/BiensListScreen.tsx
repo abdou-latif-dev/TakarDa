@@ -1,68 +1,92 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { IconButton, SecondaryButton } from '@/components/ui/Button';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
-import { SectionTitleText, LabelText } from '@/components/ui/Typography';
+import { SectionTitleText, LabelText, BodyMdText } from '@/components/ui/Typography';
 import { Colors } from '@/constants/theme';
-import { useCoreStore } from '@/store/coreStore';
-import { ensureImmobilierTool } from '@/services/immobilierService';
+import { formatOccupancySummary, listBiensWithSummary, type BienSummary } from '@/services/immobilierService';
+import { seedDemoImmobilier } from '@/services/immobilierDemoService';
 
+/** Liste des BIENS (point d'entrée d'Immobilier) : chaque ligne résume ses
+ * logements — « 4 logements · 3 occupés · 1 vacant » — et ouvre le bien. */
 export function BiensListScreen() {
-  const [toolId, setToolId] = useState<string | null>(null);
-  const [bienEdId, setBienEdId] = useState<string | null>(null);
-  const { records, recordsStatus, fetchRecords } = useCoreStore();
+  const [items, setItems] = useState<BienSummary[] | null>(null);
+  const [error, setError] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
-  useEffect(() => {
-    ensureImmobilierTool().then(({ tool, bien }) => {
-      setToolId(tool.id);
-      setBienEdId(bien.id);
-      fetchRecords({ toolId: tool.id, entityDefinitionId: bien.id });
-    });
-  }, [fetchRecords]);
+  const load = useCallback(async () => {
+    try {
+      setItems(await listBiensWithSummary());
+      setError(false);
+    } catch {
+      setError(true);
+    }
+  }, []);
 
-  const key = toolId && bienEdId ? `${toolId}:${bienEdId}` : null;
-  const list = key ? (records[key] ?? []) : [];
-  const status = key ? recordsStatus[key] : 'loading';
+  // Recharge à chaque retour sur l'écran (après création/suppression d'un bien…).
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const onSeedDemo = async () => {
+    setSeeding(true);
+    try {
+      const firstBienId = await seedDemoImmobilier();
+      await load();
+      router.push(`/immobilier/${firstBienId}`);
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Immobilier" showBack trailing={<IconButton icon="add" onPress={() => router.push('/immobilier/new')} />} />
       <ScrollView contentContainerClassName="gap-3 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
-        <SecondaryButton label="Personnaliser les formulaires" icon="tune" onPress={() => router.push('/immobilier/personnaliser')} />
-        {status === 'loading' && list.length === 0 && <LoadingState />}
-        {status === 'error' && (
-          <ErrorState onRetry={() => toolId && bienEdId && fetchRecords({ toolId, entityDefinitionId: bienEdId })} />
+        {items !== null && items.length > 0 && (
+          <BodyMdText>
+            {items.length} bien{items.length > 1 ? 's' : ''}
+          </BodyMdText>
         )}
-        {status === 'success' && list.length === 0 && (
+        {items === null && !error && <LoadingState />}
+        {error && <ErrorState onRetry={load} />}
+        {items !== null && items.length === 0 && (
           <EmptyState
             icon="home-work"
             title="Aucun bien"
-            description="Ajoutez votre premier bien pour commencer à gérer vos locataires et paiements."
+            description="Ajoutez votre premier bien (maison, immeuble…), puis ses logements et ses locataires."
             actionLabel="Ajouter un bien"
             onAction={() => router.push('/immobilier/new')}
           />
         )}
-        {list.map((record) => (
+        {items?.map(({ bien, summary }) => (
           <Pressable
-            key={record.id}
-            onPress={() => router.push(`/immobilier/${record.id}`)}
+            key={bien.id}
+            onPress={() => router.push(`/immobilier/${bien.id}`)}
             className="flex-row items-center gap-3 rounded-xl border border-border bg-surface p-gutter-card shadow-soft active:opacity-90">
             <View className="h-11 w-11 items-center justify-center rounded-full bg-primary-soft">
               <MaterialIcons name="home-work" size={20} color={Colors.primary} />
             </View>
-            <View className="flex-1">
-              <SectionTitleText className="text-base" numberOfLines={1}>
-                {String(record.values.nom ?? 'Bien')}
+            <View className="flex-1 gap-0.5">
+              <SectionTitleText className="text-base" numberOfLines={2} ellipsizeMode="tail">
+                {String(bien.values.nom ?? 'Bien')}
               </SectionTitleText>
-              <LabelText numberOfLines={1}>{String(record.values.adresse ?? '')}</LabelText>
+              <LabelText numberOfLines={2} ellipsizeMode="tail">
+                {formatOccupancySummary(summary)}
+              </LabelText>
             </View>
             <MaterialIcons name="chevron-right" size={20} color={Colors.emptyIcon} />
           </Pressable>
         ))}
+        <SecondaryButton label="Personnaliser les formulaires" icon="tune" onPress={() => router.push('/immobilier/personnaliser')} />
+        <SecondaryButton
+          label="Essayer avec des biens de démonstration"
+          icon="auto-awesome"
+          loading={seeding}
+          onPress={onSeedDemo}
+        />
       </ScrollView>
     </SafeAreaView>
   );

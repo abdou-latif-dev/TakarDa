@@ -12,7 +12,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SectionTitleText, LabelText, BodyMdText } from '@/components/ui/Typography';
 import { formatFcfa, formatRelativeTime } from '@/utils/format';
 import { coreService } from '@/services/coreService';
-import { ensureImmobilierTool } from '@/services/immobilierService';
+import { contratLabel, ensureImmobilierTool, loadImmobilierLookup } from '@/services/immobilierService';
 import { ensureFacturesTool } from '@/services/facturesService';
 import {
   findPreviousReleve,
@@ -106,10 +106,11 @@ export function RepartitionScreen() {
       const immobilier = await ensureImmobilierTool();
       const allContrats = await coreService.getRecords({ toolId: immobilier.tool.id, entityDefinitionId: immobilier.contrat.id });
       const activeForBien = allContrats.filter((c) => c.values.bien === f.values.bien && c.statusKey === 'actif');
+      const lookup = await loadImmobilierLookup();
       participants = activeForBien.map((c) => ({
         type: 'contrat' as const,
         id: c.id,
-        label: typeof c.values.locataire_nom === 'string' && c.values.locataire_nom ? c.values.locataire_nom : String(c.values.nom_logement ?? 'Locataire'),
+        label: contratLabel(c, lookup),
       }));
     } else {
       setIsStandalone(true);

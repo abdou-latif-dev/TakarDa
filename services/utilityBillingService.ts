@@ -67,10 +67,23 @@ export async function resolveParticipantLabel(participant: Pick<Participant, 'ty
   if (participant.type === 'contrat' && participant.id) {
     const contrat = await coreService.getRecord(participant.id);
     if (contrat) {
+      // Modèle Immobilier actuel : locataire = ExternalContact (`locataire_id`),
+      // logement = enregistrement `logement`. Repli sur les champs hérités des
+      // contrats antérieurs à la refonte du 2026-10-04.
+      const locataireId = contrat.values.locataire_id;
+      if (typeof locataireId === 'string' && locataireId) {
+        const contact = await coreService.getExternalContact(locataireId);
+        if (contact?.name) return contact.name;
+      }
       const nom = contrat.values.locataire_nom;
       if (typeof nom === 'string' && nom.trim()) return nom;
-      const logement = contrat.values.nom_logement;
-      if (typeof logement === 'string' && logement.trim()) return logement;
+      const logementId = contrat.values.logement;
+      if (typeof logementId === 'string' && logementId) {
+        const logement = await coreService.getRecord(logementId);
+        if (typeof logement?.values.nom === 'string' && logement.values.nom.trim()) return logement.values.nom;
+      }
+      const legacyLogement = contrat.values.nom_logement;
+      if (typeof legacyLogement === 'string' && legacyLogement.trim()) return legacyLogement;
     }
   }
   if (participant.type === 'contact' && participant.id) {
