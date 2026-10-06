@@ -62,10 +62,10 @@ export function FacturesListScreen() {
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Factures" showBack trailing={<IconButton icon="add" onPress={() => router.push('/factures/new')} />} />
       <ScrollView contentContainerClassName="gap-3 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
-        {/* Accès provisoire aux index CEET / TDE (le tableau de bord de chaque module viendra ensuite). */}
+        {/* Entrées vers les deux outils : l'accueil de chaque module (participants, index, calcul, historique). */}
         <View className="flex-row gap-3">
-          <View className="flex-1"><SecondaryButton label="⚡ CEET · Index" onPress={() => router.push('/ceet/releves' as never)} /></View>
-          <View className="flex-1"><SecondaryButton label="💧 TDE · Index" onPress={() => router.push('/tde/releves' as never)} /></View>
+          <View className="flex-1"><SecondaryButton label="⚡ CEET" onPress={() => router.push('/ceet' as never)} /></View>
+          <View className="flex-1"><SecondaryButton label="💧 TDE" onPress={() => router.push('/tde' as never)} /></View>
         </View>
         <View className="flex-row gap-3"><View className="flex-1"><SecondaryButton label="Cahier d’index" icon="speed" onPress={() => router.push('/factures/releves')} /></View><View className="flex-1"><SecondaryButton label="Personnaliser" icon="tune" onPress={() => toolId && entityDefinitionId && router.push({ pathname: '/schema/customize' as never, params: { toolId, entityDefinitionId } })} /></View></View>
 

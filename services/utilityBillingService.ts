@@ -545,10 +545,15 @@ export async function createFacturePartagee(input: {
   if (input.bienEntityDefinitionId) {
     await ensureBienRelationTarget(input.facturePartageeEntityDefinitionId, input.bienEntityDefinitionId);
   }
+  // Le champ « sélection » du formulaire enregistre le libellé (« CEET », « TDE ») : on
+  // normalise à l'identifiant (`ceet`, `tde`, `autre`) à la création. Les anciennes
+  // factures restent lisibles (comparaisons insensibles à la casse partout).
+  const key = fournisseurKey(input.values.fournisseur);
+  const values = (FOURNISSEURS as readonly string[]).includes(key) ? { ...input.values, fournisseur: key } : input.values;
   return coreService.createRecord({
     toolId: input.toolId,
     entityDefinitionId: input.facturePartageeEntityDefinitionId,
-    values: input.values,
+    values,
     statusKey: 'a_payer',
   });
 }

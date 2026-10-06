@@ -64,6 +64,18 @@ export function HomeScreen() {
               onPress={() => router.push('/factures')}
             />
             <QuickActionCard
+              icon="bolt"
+              title="CEET"
+              subtitle="Électricité : index et répartition"
+              onPress={() => router.push('/ceet' as never)}
+            />
+            <QuickActionCard
+              icon="water-drop"
+              title="TDE"
+              subtitle="Eau : index et répartition"
+              onPress={() => router.push('/tde' as never)}
+            />
+            <QuickActionCard
               icon="dashboard-customize"
               title="Modèles"
               subtitle="Tontines et formulaires"

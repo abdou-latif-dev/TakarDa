@@ -19,10 +19,11 @@ import type { EntityDefinition, FieldValue } from '@/types/entities';
  * imbriquée sous un Bien) et Factures autonome (bienId absent, ex: atelier,
  * boutique, association) — un seul moteur, voir services/utilityBillingService.ts. */
 export function FacturePartageeFormScreen() {
-  const { bienId } = useLocalSearchParams<{ bienId?: string }>();
+  // `fournisseur` (ceet | tde) présélectionne le module quand on arrive depuis son accueil.
+  const { bienId, fournisseur } = useLocalSearchParams<{ bienId?: string; fournisseur?: string }>();
   const [entityDefinition, setEntityDefinition] = useState<EntityDefinition | null>(null);
   const [toolId, setToolId] = useState<string | null>(null);
-  const [values, setValues] = useState<Record<string, FieldValue>>({ mois: currentPeriode() });
+  const [values, setValues] = useState<Record<string, FieldValue>>({ mois: currentPeriode(), ...(fournisseur === 'ceet' || fournisseur === 'tde' ? { fournisseur: fournisseur.toUpperCase() } : {}) });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
