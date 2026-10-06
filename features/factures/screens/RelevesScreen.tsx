@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -14,7 +14,7 @@ import { Colors } from '@/constants/theme';
 import { coreService } from '@/services/coreService';
 import { ensureFacturesTool } from '@/services/facturesService';
 import { contratLabel, ensureImmobilierTool, loadImmobilierLookup, type ImmobilierLookup } from '@/services/immobilierService';
-import { deleteReleve, saveReleve, type Participant, type ParticipantType } from '@/services/utilityBillingService';
+import { deleteReleve, fournisseurKey, saveReleve, type Participant, type ParticipantType } from '@/services/utilityBillingService';
 import type { EntityDefinition, RecordItem, Tool } from '@/types/entities';
 
 type ReadingInput = { id: string; participant: Participant; index: string; note: string };
@@ -29,7 +29,9 @@ const newRow = (): ReadingInput => ({ id: `${Date.now()}-${Math.random()}`, part
 export function RelevesScreen() {
   const [tool, setTool] = useState<Tool | null>(null);
   const [definition, setDefinition] = useState<EntityDefinition | null>(null);
-  const [type, setType] = useState('CEET');
+  // CEET et TDE ont désormais leur propre écran Index (participants rattachés à une personne) :
+  // ce cahier ne sert plus qu'au fournisseur « Autre » et aux anciennes saisies.
+  const [type, setType] = useState('Autre');
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [rows, setRows] = useState<ReadingInput[]>([newRow()]);
   const [saved, setSaved] = useState<RecordItem[]>([]);
@@ -63,7 +65,7 @@ export function RelevesScreen() {
     setTool(ensured.tool);
     setDefinition(ensured.releveDefinition);
     const records = await coreService.getRecords({ toolId: ensured.tool.id, entityDefinitionId: ensured.releveDefinition.id });
-    setSaved(records.filter((record) => record.values.fournisseur === type && record.values.mois === month));
+    setSaved(records.filter((record) => fournisseurKey(record.values.fournisseur) === fournisseurKey(type) && record.values.mois === month));
     setLoading(false);
   }, [month, type]);
 
@@ -134,10 +136,19 @@ export function RelevesScreen() {
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Cahier des index" showBack trailing={<MaterialIcons name="speed" size={22} color={Colors.primary} />} />
       <ScrollView contentContainerClassName="gap-4 px-page-margin pb-10" keyboardShouldPersistTaps="handled">
+        <Card className="gap-3">
+          <SectionTitleText className="text-base">CEET et TDE ont leur propre écran</SectionTitleText>
+          <LabelText>Les index CEET et TDE s'enregistrent maintenant pour des participants identifiés, depuis l'accueil de chaque module.</LabelText>
+          <View className="flex-row gap-3">
+            <View className="flex-1"><SecondaryButton label="⚡ CEET" onPress={() => router.push('/ceet' as never)} /></View>
+            <View className="flex-1"><SecondaryButton label="💧 TDE" onPress={() => router.push('/tde' as never)} /></View>
+          </View>
+        </Card>
+
         <Card className="gap-4">
           <SectionTitleText className="text-base">Relevés manuels</SectionTitleText>
           <View className="flex-row flex-wrap gap-2">
-            {['CEET', 'TDE', 'Autre'].map((item) => <Chip key={item} label={item} active={type === item} onPress={() => setType(item)} />)}
+            {['Autre'].map((item) => <Chip key={item} label={item} active={type === item} onPress={() => setType(item)} />)}
           </View>
           <TextField label="Mois" placeholder="AAAA-MM" value={month} onChangeText={setMonth} />
           {rows.map((row) => (

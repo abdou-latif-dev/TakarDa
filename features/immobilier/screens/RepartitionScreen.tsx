@@ -550,7 +550,7 @@ export function RepartitionScreen() {
             </View>
           )}
           {source !== 'participations' && mode === 'proportionnel' && (
-            <SecondaryButton label="Saisir ou corriger les index" icon="speed" onPress={() => router.push('/factures/releves')} />
+            <SecondaryButton label="Saisir ou corriger les index" icon="speed" onPress={() => router.push((moduleKey ? `/${moduleKey}/releves` : '/factures/releves') as never)} />
           )}
         </View>
 

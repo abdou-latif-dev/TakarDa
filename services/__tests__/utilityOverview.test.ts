@@ -44,7 +44,7 @@ async function snapshotFor(module: 'ceet' | 'tde') {
 describe('Module vide : zéros et tirets, rien d\'inventé', () => {
   it('sans aucune donnée', () => {
     const d = buildDashboard({ module: 'ceet', participations: [], releves: [], factures: [], parts: [] });
-    expect(d).toEqual({ participants: 0, lastReleve: null, lastFacture: null, aRecevoir: 0, aRegler: [], facturesCount: 0 });
+    expect(d).toEqual({ participants: 0, lastReleve: null, lastFacture: null, aRecevoir: 0, aRegler: [], facturesCount: 0, legacyReleves: 0 });
     expect(buildHistory([], [], 'ceet')).toEqual([]);
   });
 });

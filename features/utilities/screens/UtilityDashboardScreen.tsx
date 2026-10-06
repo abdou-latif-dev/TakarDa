@@ -74,6 +74,15 @@ export function UtilityDashboardScreen({ module }: { module: UtilityModule }) {
               </View>
             </View>
 
+            {data.legacyReleves > 0 && (
+              <Card className="gap-3">
+                <LabelText>
+                  {data.legacyReleves} ancien{data.legacyReleves > 1 ? 's' : ''} relevé{data.legacyReleves > 1 ? 's' : ''} saisi{data.legacyReleves > 1 ? 's' : ''} avec un simple nom ne {data.legacyReleves > 1 ? 'sont' : 'est'} pas encore rattaché{data.legacyReleves > 1 ? 's' : ''} à une personne.
+                </LabelText>
+                <SecondaryButton label="Rattacher les anciens relevés" icon="link" onPress={() => go(`/${module}/anciens-releves`)} />
+              </Card>
+            )}
+
             {data.participants === 0 && <LabelText>Commencez par ajouter les participants concernés, puis enregistrez leurs index.</LabelText>}
 
             {data.aRegler.length > 0 && (

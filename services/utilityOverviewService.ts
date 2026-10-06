@@ -37,6 +37,8 @@ export interface ModuleDashboard {
   /** Factures du module qui ont encore au moins une part à payer (les plus récentes d'abord). */
   aRegler: HistoryRow[];
   facturesCount: number;
+  /** Anciens relevés « saisie libre » de ce module, pas encore rattachés à une personne. */
+  legacyReleves: number;
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -105,6 +107,7 @@ export function buildDashboard(input: {
     aRecevoir,
     aRegler: history.filter((h) => h.state === 'a_payer' || h.state === 'partielle'),
     facturesCount: history.length,
+    legacyReleves: releves.filter((r) => fournisseurKey(r.values.fournisseur) === module && r.values.participant_type === 'manuel' && typeof r.values.compteur === 'string' && r.values.compteur.trim() !== '').length,
   };
 }
 
