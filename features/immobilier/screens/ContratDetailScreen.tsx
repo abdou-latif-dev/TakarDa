@@ -11,6 +11,7 @@ import { TextField } from '@/components/ui/TextField';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { SectionTitleText, LabelText, BodyMdText } from '@/components/ui/Typography';
 import { InfoRow } from '@/components/immobilier/InfoRow';
+import { PaiementsSection } from '@/components/immobilier/PaiementsSection';
 import { Colors } from '@/constants/theme';
 import { CoreFieldRenderer } from '@/components/core/CoreFieldRenderer';
 import { formatFcfa, formatRelativeTime } from '@/utils/format';
@@ -94,6 +95,8 @@ export function ContratDetailScreen() {
   const logementNom = String(logement?.values.nom ?? contrat.values.nom_logement ?? 'Logement');
   const locataireNom = locataire?.name ?? (typeof contrat.values.locataire_nom === 'string' ? contrat.values.locataire_nom : '—');
   const montant = (value: unknown) => (typeof value === 'number' ? formatFcfa(value) : '—');
+  // Anciens paiements créés « en attente » (ou rejetés) avant la simplification : toujours validables.
+  const legacyPaiements = paiements.filter((p) => p.statusKey !== 'paye');
 
   const startEdit = () => {
     setNom(locataire?.name ?? '');
@@ -303,30 +306,34 @@ export function ContratDetailScreen() {
             </>
           )}
 
-          <View className="gap-3">
-            <View className="flex-row items-center justify-between gap-3">
-              <SectionTitleText className="text-base">Paiements</SectionTitleText>
-              <SecondaryButton label="Ajouter" icon="add" fullWidth={false} onPress={() => router.push(`/immobilier/contrat/${contratId}/paiement-new`)} />
-            </View>
-            {paiements.length === 0 ? (
-              <BodyMdText>Aucun paiement pour l&apos;instant.</BodyMdText>
-            ) : (
+          <PaiementsSection
+            contrat={contrat}
+            paiements={paiements}
+            locataireNom={locataireNom}
+            logementNom={logementNom}
+            bienNom={bien ? String(bien.values.nom) : undefined}
+            onRecorded={load}
+          />
+
+          {legacyPaiements.length > 0 && (
+            <View className="gap-3">
+              <SectionTitleText className="text-base">Paiements à valider</SectionTitleText>
               <Card className="gap-0 p-0">
-                {paiements.map((p, i) => (
+                {legacyPaiements.map((p, i) => (
                   <View key={p.id}>
                     {i > 0 && <View className="h-px bg-border" />}
                     <Pressable onPress={() => onChangePaiementStatus(p)} className="flex-row items-center gap-3 p-gutter-card active:bg-background-secondary">
                       <View className="flex-1">
                         <SectionTitleText className="text-base" numberOfLines={1}>{String(p.values.mois ?? '')}</SectionTitleText>
-                        <LabelText>{p.statusKey === 'paye' ? 'Payé' : p.statusKey === 'rejete' ? 'Rejeté' : 'En attente'}</LabelText>
+                        <LabelText>{p.statusKey === 'rejete' ? 'Rejeté' : 'En attente'}</LabelText>
                       </View>
                       <LabelText className="font-inter-semibold text-text-primary" numberOfLines={1}>{montant(p.values.montant)}</LabelText>
                     </Pressable>
                   </View>
                 ))}
               </Card>
-            )}
-          </View>
+            </View>
+          )}
 
           <View className="gap-3">
             <SectionTitleText className="text-base">Historique</SectionTitleText>

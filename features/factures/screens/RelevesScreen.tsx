@@ -14,7 +14,7 @@ import { Colors } from '@/constants/theme';
 import { coreService } from '@/services/coreService';
 import { ensureFacturesTool } from '@/services/facturesService';
 import { contratLabel, ensureImmobilierTool, loadImmobilierLookup, type ImmobilierLookup } from '@/services/immobilierService';
-import { saveReleve, type Participant, type ParticipantType } from '@/services/utilityBillingService';
+import { deleteReleve, saveReleve, type Participant, type ParticipantType } from '@/services/utilityBillingService';
 import type { EntityDefinition, RecordItem, Tool } from '@/types/entities';
 
 type ReadingInput = { id: string; participant: Participant; index: string; note: string };
@@ -96,6 +96,9 @@ export function RelevesScreen() {
       }
       setRows([newRow()]);
       await load();
+    } catch (e) {
+      Alert.alert('Relevé non enregistré', e instanceof Error ? e.message : 'Une erreur est survenue.');
+      await load();
     } finally {
       setSaving(false);
     }
@@ -103,7 +106,18 @@ export function RelevesScreen() {
 
   const remove = (record: RecordItem) => Alert.alert('Supprimer ce relevé ?', `${record.values.compteur} · index ${record.values.index}`, [
     { text: 'Annuler', style: 'cancel' },
-    { text: 'Supprimer', style: 'destructive', onPress: async () => { await coreService.deleteRecord(record.id); await load(); } },
+    {
+      text: 'Supprimer',
+      style: 'destructive',
+      onPress: async () => {
+        try {
+          await deleteReleve(record.id); // refuse un relevé déjà utilisé par une facture validée
+        } catch (e) {
+          Alert.alert('Suppression impossible', e instanceof Error ? e.message : 'Une erreur est survenue.');
+        }
+        await load();
+      },
+    },
   ]);
 
   const setRowType = (rowId: string, participantType: ParticipantType) => {

@@ -38,6 +38,7 @@ const FACTURE_ENTITY_KEY = 'facture';
 const RELEVE_ENTITY_KEY = 'releve';
 const FACTURE_PARTAGEE_ENTITY_KEY = 'facture_partagee';
 const PART_LOCATAIRE_ENTITY_KEY = 'part_locataire';
+const PARTICIPATION_ENTITY_KEY = 'participation';
 
 export interface FacturesEntities {
   tool: Tool;
@@ -45,6 +46,8 @@ export interface FacturesEntities {
   releveDefinition: EntityDefinition;
   facturePartageeDefinition: EntityDefinition;
   partLocataireDefinition: EntityDefinition;
+  /** Participation d'une personne/contrat à un module (CEET ou TDE). */
+  participationDefinition: EntityDefinition;
 }
 
 async function findFacturesTool(): Promise<Tool | null> {
@@ -231,7 +234,7 @@ export async function ensureFacturesTool(): Promise<FacturesEntities> {
       ],
     }));
 
-  const partLocataireDefinition =
+  let partLocataireDefinition =
     existingEntities.find((e) => e.key === PART_LOCATAIRE_ENTITY_KEY) ??
     (await coreService.createEntityDefinition({
       toolId: tool.id,
@@ -268,6 +271,80 @@ export async function ensureFacturesTool(): Promise<FacturesEntities> {
         { key: 'montant_attribue', type: 'amount', label: 'Montant attribué', required: true },
       ],
     }));
+  // Snapshot d'une part validée + date de paiement (CEET/TDE étape 1) — champs
+  // ADDITIFS et facultatifs : les anciennes parts, sans ces valeurs, restent
+  // lisibles telles quelles (« date inconnue », pas de détail d'index figé).
+  // Rien n'est jamais déduit ni fabriqué pour elles.
+  const partSnapshotFields = [
+    { key: 'fournisseur', type: 'text' as const, label: 'Fournisseur (figé)', required: false },
+    { key: 'periode', type: 'text' as const, label: 'Période (figée)', required: false },
+    { key: 'index_precedent', type: 'number' as const, label: 'Index précédent (figé)', required: false },
+    { key: 'index_actuel', type: 'number' as const, label: 'Index actuel (figé)', required: false },
+    { key: 'prix_unitaire', type: 'number' as const, label: 'Prix unitaire (figé)', required: false },
+    { key: 'nb_participants', type: 'number' as const, label: 'Nombre de participants (figé)', required: false },
+    { key: 'montant_facture', type: 'amount' as const, label: 'Montant de la facture (figé)', required: false },
+    { key: 'releve_precedent_id', type: 'text' as const, label: 'Relevé précédent utilisé (interne)', required: false },
+    { key: 'releve_actuel_id', type: 'text' as const, label: 'Relevé actuel utilisé (interne)', required: false },
+    { key: 'date_paiement', type: 'date' as const, label: 'Date du paiement', required: false },
+  ].filter((field) => !partLocataireDefinition.fields.some((current) => current.key === field.key));
+  if (partSnapshotFields.length) {
+    partLocataireDefinition = await coreService.updateEntityDefinition(partLocataireDefinition.id, {
+      fields: [...partLocataireDefinition.fields, ...partSnapshotFields.map((field, index) => ({ ...field, id: `legacy-${field.key}`, order: partLocataireDefinition.fields.length + index }))],
+    });
+  }
 
-  return { tool, entityDefinition, releveDefinition, facturePartageeDefinition, partLocataireDefinition };
+  // Participation : le lien « cette personne participe à CEET (ou TDE) ». Une
+  // personne (ExternalContact) n'appartient jamais à un module : c'est cette
+  // entité, une par (fournisseur, personne), qui porte la relation. Archiver une
+  // participation ne supprime rien (relevés et parts restent). Additif : les
+  // installations existantes la reçoivent à la première ouverture.
+  const participationDefinition =
+    existingEntities.find((e) => e.key === PARTICIPATION_ENTITY_KEY) ??
+    (await coreService.createEntityDefinition({
+      toolId: tool.id,
+      key: PARTICIPATION_ENTITY_KEY,
+      label: 'Participant',
+      labelPlural: 'Participants',
+      icon: 'group',
+      isSystem: true,
+      statuses: [
+        { key: 'actif', label: 'Actif', color: 'success', order: 0 },
+        { key: 'archive', label: 'Archivé', color: 'muted', isTerminal: false, order: 1 },
+      ],
+      fields: [
+        { key: 'fournisseur', type: 'select', label: 'Module', required: true, options: [{ id: 'ceet', label: 'CEET' }, { id: 'tde', label: 'TDE' }] },
+        {
+          key: 'participant_type',
+          type: 'select',
+          label: 'Type de participant',
+          required: true,
+          options: [
+            { id: 'contrat', label: 'Contrat (Immobilier)' },
+            { id: 'contact', label: 'Contact' },
+          ],
+        },
+        { key: 'participant_id', type: 'text', label: 'Participant (interne)', required: true },
+        { key: 'label', type: 'text', label: 'Nom affiché', required: true },
+        { key: 'source', type: 'text', label: 'Origine (immobilier / autonome)', required: false },
+      ],
+    }));
+
+  return { tool, entityDefinition, releveDefinition, facturePartageeDefinition, partLocataireDefinition, participationDefinition };
+}
+
+let cachedEnsure: Promise<FacturesEntities> | null = null;
+
+/** Variante de `ensureFacturesTool` initialisée UNE seule fois : évite de relancer
+ * l'approvisionnement (plusieurs appels au stockage) à chaque lecture. À réserver
+ * aux appelants qui n'utilisent que les identifiants / clés des définitions (les
+ * champs peuvent être personnalisés ailleurs : cette copie peut alors être
+ * périmée). Un échec n'est pas mis en cache. */
+export function ensureFacturesToolCached(): Promise<FacturesEntities> {
+  if (!cachedEnsure) {
+    cachedEnsure = ensureFacturesTool().catch((error) => {
+      cachedEnsure = null;
+      throw error;
+    });
+  }
+  return cachedEnsure;
 }

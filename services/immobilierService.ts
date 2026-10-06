@@ -306,6 +306,10 @@ async function provisionImmobilier(): Promise<ImmobilierEntities> {
   const paiementAdditions = [
     { key: 'mode_paiement', type: 'text' as const, label: 'Mode de paiement (note)', required: false },
     { key: 'date_validation', type: 'date' as const, label: 'Date de validation', required: false },
+    // Références figées au moment du paiement (paiement = événement historique).
+    { key: 'logement', type: 'text' as const, label: 'Logement', required: false },
+    { key: 'bien', type: 'text' as const, label: 'Bien', required: false },
+    { key: 'locataire_id', type: 'text' as const, label: 'Locataire (contact)', required: false },
   ].filter((field) => missing(paiement, field.key));
   if (paiementAdditions.length) {
     paiement = await coreService.updateEntityDefinition(paiement.id, {
@@ -386,45 +390,167 @@ export interface ContratLateness {
 }
 
 const MOIS_FORMAT = /^\d{4}-\d{2}$/;
+const asNumber = (value: FieldValue | undefined): number | null => (typeof value === 'number' ? value : null);
+const asText = (value: FieldValue | undefined): string => (typeof value === 'string' ? value : '');
 
-/** Adapté de H-PAY (src/utils/tenantStatus.js) — calculé à la lecture à partir
- * des vrais paiements validés, jamais stocké. Corrections de l'audit du
- * 2026-10-04 : un contrat terminé/archivé n'est jamais « en retard » ; les
- * dates et les mois mal formés sont ignorés au lieu de produire un NaN lu
- * comme « À jour » ; `jour_echeance` repousse le début du retard du mois
- * courant (par défaut : dès le 1er). */
+// ============================================================================
+// Périodes dues, retard et prochain mois — calculés mois par mois
+// ============================================================================
+
+const monthIndex = (mois: string): number => {
+  const [y, m] = mois.split('-').map(Number);
+  return y * 12 + (m - 1);
+};
+const monthFromIndex = (index: number): string => `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
+
+/** Mois (AAAA-MM) couverts par un vrai paiement `paye` du contrat. */
+function paidMonthsOf(contrat: RecordItem, paiements: RecordItem[]): Set<string> {
+  return new Set(
+    paiements
+      .filter((p) => p.values.contrat === contrat.id && p.statusKey === 'paye' && typeof p.values.mois === 'string' && MOIS_FORMAT.test(p.values.mois))
+      .map((p) => p.values.mois as string),
+  );
+}
+
+/** Premier mois (index) pouvant être dû : celui qui suit le « dernier loyer
+ * payé » déclaré à la création (simple point de départ, ce n'est PAS un
+ * paiement), sinon le mois d'entrée. Jamais avant le mois d'entrée. */
+function firstDueIndex(contrat: RecordItem): number | null {
+  const entree = parseDay(contrat.values.date_entree) ?? new Date(contrat.createdAt);
+  const entreeIndex = Number.isNaN(entree.getTime()) ? -Infinity : entree.getFullYear() * 12 + entree.getMonth();
+  const declared = contrat.values.dernier_loyer_paye;
+  const declaredIndex = typeof declared === 'string' && MOIS_FORMAT.test(declared) ? monthIndex(declared) + 1 : -Infinity;
+  const index = Math.max(entreeIndex, declaredIndex);
+  return Number.isFinite(index) ? index : null;
+}
+
+/** Mois calendaire en cours (index). Règle unique : un mois est « En retard »
+ * seulement s'il est entièrement écoulé (index < mois en cours) ; le mois en
+ * cours, même dû, reste « À payer ». Le badge et les lignes l'utilisent tous deux. */
+function currentMonthIndex(now: Date): number {
+  return now.getFullYear() * 12 + now.getMonth();
+}
+
+/** Mois entièrement écoulés et non payés (= en retard), période par période : un trou reste un impayé même
+ * si un mois plus récent a été payé (avril impayé, mai payé → avril en retard). */
+export function computeUnpaidDueMonths(contrat: RecordItem, paiements: RecordItem[], now = new Date()): string[] {
+  if (contrat.statusKey === 'termine' || contrat.statusKey === 'archive') return [];
+  const start = firstDueIndex(contrat);
+  if (start === null) return [];
+  const paid = paidMonthsOf(contrat, paiements);
+  const unpaid: string[] = [];
+  for (let i = start; i < currentMonthIndex(now); i += 1) {
+    if (!paid.has(monthFromIndex(i))) unpaid.push(monthFromIndex(i));
+  }
+  return unpaid;
+}
+
+/** Adapté de H-PAY (src/utils/tenantStatus.js) — calculé à la lecture, jamais
+ * stocké, période par période à partir des vrais paiements `paye`. Un contrat
+ * terminé/archivé n'est jamais « en retard » ; les dates/mois mal formés sont
+ * ignorés ; aucun loyer n'est dû avant la date d'entrée (une entrée future ne
+ * produit aucun retard). */
 export function computeContratLateness(contrat: RecordItem, paiements: RecordItem[], now = new Date()): ContratLateness {
   if (contrat.statusKey === 'termine' || contrat.statusKey === 'archive') {
     return { key: 'sans_paiement', label: 'Terminé', lateMonths: 0 };
   }
-  const rawJour = contrat.values.jour_echeance;
-  const jour = typeof rawJour === 'number' && rawJour >= 1 && rawJour <= 31 ? rawJour : 1;
-  const currentIndex = now.getFullYear() * 12 + now.getMonth() - (now.getDate() < jour ? 1 : 0);
-
-  const paidMonths = paiements
-    .filter((p) => p.values.contrat === contrat.id && p.statusKey === 'paye' && typeof p.values.mois === 'string' && MOIS_FORMAT.test(p.values.mois))
-    .map((p) => p.values.mois as string);
-  // « Dernier loyer payé » déclaré à l'enregistrement du locataire (loyers réglés
-  // avant l'arrivée dans TakarDa) : même rôle qu'un paiement validé. Une valeur
-  // mal formée est ignorée — jamais lue comme « À jour ».
+  const lateMonths = computeUnpaidDueMonths(contrat, paiements, now).length;
+  if (lateMonths > 0) return { key: 'retard', label: 'En retard', lateMonths };
   const declared = contrat.values.dernier_loyer_paye;
-  if (typeof declared === 'string' && MOIS_FORMAT.test(declared)) paidMonths.push(declared);
-  paidMonths.sort();
-  const lastPaidMonth = paidMonths.at(-1);
+  const hasPaid = paidMonthsOf(contrat, paiements).size > 0 || (typeof declared === 'string' && MOIS_FORMAT.test(declared));
+  return hasPaid ? { key: 'a_jour', label: 'À jour', lateMonths: 0 } : { key: 'sans_paiement', label: 'Aucun paiement', lateMonths: 0 };
+}
 
-  if (!lastPaidMonth) {
-    const entree = parseDay(contrat.values.date_entree) ?? new Date(contrat.createdAt);
-    const entreeIndex = Number.isNaN(entree.getTime()) ? currentIndex : entree.getFullYear() * 12 + entree.getMonth();
-    const lateMonths = Math.max(0, currentIndex - entreeIndex);
-    return lateMonths > 0
-      ? { key: 'retard', label: 'En retard', lateMonths }
-      : { key: 'sans_paiement', label: 'Aucun paiement', lateMonths: 0 };
+// ============================================================================
+// Paiement mensuel simplifié — « Enregistrer le paiement »
+// ============================================================================
+
+/** Premier mois dû non payé du contrat — jamais « le mois courant » ni « le
+ * mois suivant le dernier paiement » : un trou est toujours proposé en premier
+ * (janv.–mars payés, avril non, mai payé → avril). Renvoie null si le contrat
+ * n'est pas actif. */
+export function computeNextDueMonth(contrat: RecordItem, paiements: RecordItem[]): string | null {
+  if (contrat.statusKey !== 'actif') return null;
+  let index = firstDueIndex(contrat);
+  if (index === null) return null;
+  const paid = paidMonthsOf(contrat, paiements);
+  while (paid.has(monthFromIndex(index))) index += 1;
+  return monthFromIndex(index);
+}
+
+export interface PaiementTimelineRow {
+  mois: string;
+  status: 'paye' | 'a_payer' | 'en_retard';
+  /** Montant du paiement enregistré (figé) ; pour un mois non payé : loyer actuel du contrat. */
+  montant: number | null;
+  /** Le vrai paiement enregistré ; null pour un mois non payé. */
+  paiement: RecordItem | null;
+}
+
+/** Ce que voit le propriétaire, du plus récent au plus ancien : vrais paiements
+ * enregistrés, mois impayés (trous) « En retard » quand un mois entier est
+ * écoulé, et le prochain mois « À payer ». Le « dernier loyer payé » déclaré
+ * n'apparaît jamais comme un paiement. */
+export function buildPaiementTimeline(contrat: RecordItem, paiements: RecordItem[], now = new Date()): PaiementTimelineRow[] {
+  const loyer = asNumber(contrat.values.loyer_mensuel);
+  const real = paiements.filter((p) => p.values.contrat === contrat.id && p.statusKey === 'paye' && typeof p.values.mois === 'string');
+  const rows: PaiementTimelineRow[] = real.map((p) => ({ mois: p.values.mois as string, status: 'paye', montant: asNumber(p.values.montant), paiement: p }));
+
+  if (contrat.statusKey === 'actif') {
+    const start = firstDueIndex(contrat);
+    const next = computeNextDueMonth(contrat, paiements);
+    if (start !== null && next) {
+      const paid = paidMonthsOf(contrat, paiements);
+      const lastPaid = Math.max(...[...paid].filter((m) => MOIS_FORMAT.test(m)).map(monthIndex), -Infinity);
+      const today = currentMonthIndex(now);
+      const end = Math.max(monthIndex(next), lastPaid, today);
+      for (let i = start; i <= end; i += 1) {
+        const mois = monthFromIndex(i);
+        if (paid.has(mois)) continue;
+        // Même règle que le badge : mois entièrement écoulé → « En retard », sinon « À payer ».
+        rows.push({ mois, status: i < today ? 'en_retard' : 'a_payer', montant: loyer, paiement: null });
+      }
+    }
   }
+  return rows.sort((a, b) => b.mois.localeCompare(a.mois));
+}
 
-  const [y, m] = lastPaidMonth.split('-').map(Number);
-  const lastPaidIndex = y * 12 + (m - 1);
-  const lateMonths = Math.max(0, currentIndex - lastPaidIndex);
-  return lateMonths > 0 ? { key: 'retard', label: 'En retard', lateMonths } : { key: 'a_jour', label: 'À jour', lateMonths: 0 };
+const paiementsEnCours = new Set<string>();
+
+/** Le propriétaire confirme que le locataire a payé : crée UN nouveau paiement
+ * `paye` (jamais `en_attente`) pour le premier mois non payé. Tout vient du
+ * contrat actif — loyer figé au moment du paiement. N'écrase aucun paiement
+ * existant. Un second appel simultané (double tap) est refusé. */
+export async function enregistrerPaiementLoyer(contratId: string, now: Date = new Date()): Promise<RecordItem> {
+  if (paiementsEnCours.has(contratId)) throw new Error('Un paiement est déjà en cours d’enregistrement.');
+  paiementsEnCours.add(contratId);
+  try {
+    const ents = await ensureImmobilierTool();
+    const contrat = await coreService.getRecord(contratId);
+    if (!contrat || contrat.entityDefinitionId !== ents.contrat.id) throw new Error('Contrat introuvable.');
+    if (contrat.statusKey !== 'actif') throw new Error('Ce contrat est terminé : aucun paiement ne peut être enregistré.');
+    const loyer = asNumber(contrat.values.loyer_mensuel);
+    if (!loyer || loyer <= 0) throw new Error('Le loyer mensuel du contrat est manquant.');
+    const paiements = await coreService.getRecords({ toolId: ents.tool.id, entityDefinitionId: ents.paiement.id });
+    const mois = computeNextDueMonth(contrat, paiements);
+    if (!mois) throw new Error('Aucun mois à payer pour ce contrat.');
+    return await coreService.createRecord({
+      toolId: ents.tool.id,
+      entityDefinitionId: ents.paiement.id,
+      statusKey: 'paye',
+      values: {
+        contrat: contrat.id,
+        logement: asText(contrat.values.logement),
+        bien: asText(contrat.values.bien),
+        locataire_id: asText(contrat.values.locataire_id),
+        mois,
+        montant: loyer,
+        date_validation: toIsoDay(now),
+      },
+    });
+  } finally {
+    paiementsEnCours.delete(contratId);
+  }
 }
 
 export interface LogementView {
@@ -437,8 +563,6 @@ export interface LogementView {
   loyer: number | null;
   lateness: ContratLateness | null;
 }
-
-const asNumber = (value: FieldValue | undefined): number | null => (typeof value === 'number' ? value : null);
 
 /** Fonction pure (aucun accès aux données) : tout ce que l'écran d'un Bien a
  * besoin de savoir, dérivé des enregistrements déjà chargés. */

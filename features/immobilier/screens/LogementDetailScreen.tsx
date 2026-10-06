@@ -8,13 +8,12 @@ import { PrimaryButton, SecondaryButton } from '@/components/ui/Button';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { BodyMdText, LabelText, SectionTitleText } from '@/components/ui/Typography';
 import { InfoRow } from '@/components/immobilier/InfoRow';
+import { PaiementsSection } from '@/components/immobilier/PaiementsSection';
 import { OccupancyBadge } from '@/components/immobilier/OccupancyBadge';
 import { formatMonth } from '@/components/ui/MonthPicker';
 import { Colors } from '@/constants/theme';
 import { formatFcfa } from '@/utils/format';
 import { deleteLogement, formatDay, loadLogementDetail, terminerContrat, type LogementDetail } from '@/services/immobilierService';
-
-const PAIEMENT_LABEL: Record<string, string> = { paye: 'Payé', rejete: 'Rejeté', en_attente: 'En attente' };
 
 /** Fiche d'un LOGEMENT : occupé (locataire, loyer, entrée, caution, avance,
  * paiements) ou vacant (aucun locataire, ajout possible). Terminer un contrat
@@ -153,35 +152,19 @@ export function LogementDetailScreen() {
               <InfoRow label="Dernier loyer payé" value={typeof contrat.values.dernier_loyer_paye === 'string' ? formatMonth(contrat.values.dernier_loyer_paye) : '—'} />
             </Card>
 
+            <PaiementsSection
+              contrat={contrat}
+              paiements={paiements}
+              locataireNom={locataire?.name ?? '—'}
+              logementNom={String(logement.values.nom)}
+              bienNom={bien ? String(bien.values.nom) : undefined}
+              onRecorded={load}
+            />
+
             <View className="gap-3">
-              <PrimaryButton label="Ajouter un paiement" icon="add" onPress={() => router.push(`/immobilier/contrat/${contrat.id}/paiement-new`)} />
               <SecondaryButton label="Voir le contrat" icon="description" onPress={() => router.push(`/immobilier/contrat/${contrat.id}`)} />
               <SecondaryButton label="Modifier le logement" icon="edit" onPress={() => router.push(`/immobilier/logement/${logement.id}/edit`)} />
               <SecondaryButton label="Marquer le départ" icon="logout" onPress={onTerminer} />
-            </View>
-
-            <View className="gap-3">
-              <SectionTitleText className="text-base">Paiements</SectionTitleText>
-              {paiements.length === 0 ? (
-                <BodyMdText>Aucun paiement pour l&apos;instant.</BodyMdText>
-              ) : (
-                <Card className="gap-0 p-0">
-                  {paiements.map((p, i) => (
-                    <View key={p.id}>
-                      {i > 0 && <View className="h-px bg-border" />}
-                      <Pressable
-                        onPress={() => router.push(`/immobilier/contrat/${contrat.id}`)}
-                        className="flex-row items-center gap-3 p-gutter-card active:bg-background-secondary">
-                        <View className="flex-1">
-                          <SectionTitleText className="text-base" numberOfLines={1}>{String(p.values.mois ?? '')}</SectionTitleText>
-                          <LabelText>{PAIEMENT_LABEL[p.statusKey ?? ''] ?? p.statusKey}</LabelText>
-                        </View>
-                        <LabelText className="font-inter-semibold text-text-primary" numberOfLines={1}>{montant(p.values.montant)}</LabelText>
-                      </Pressable>
-                    </View>
-                  ))}
-                </Card>
-              )}
             </View>
           </>
         ) : (

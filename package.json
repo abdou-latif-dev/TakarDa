@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "jest"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
@@ -53,13 +54,26 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.14",
     "@types/react": "~19.1.0",
     "babel-preset-expo": "~54.0.10",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "jest": "~29.7.0",
+    "jest-expo": "~54.0.0",
     "prettier-plugin-tailwindcss": "^0.5.14",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "jest": {
+    "preset": "jest-expo",
+    "testMatch": [
+      "**/__tests__/**/*.test.ts"
+    ],
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1",
+      "^nanoid$": "<rootDir>/node_modules/nanoid/index.cjs"
+    }
+  }
 }
