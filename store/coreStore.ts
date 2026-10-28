@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { coreService } from '@/services/coreService';
+import { getAccountEpoch } from '@/services/cloudVisibility';
 import type { AsyncStatus } from './asyncStatus';
 import type {
   DocumentRef,
@@ -113,13 +114,16 @@ export const useCoreStore = create<CoreState>((set, get) => ({
   fetchRecords: async (filter) => {
     const key = recordsKey(filter.toolId, filter.entityDefinitionId);
     set((s) => ({ recordsStatus: { ...s.recordsStatus, [key]: 'loading' } }));
+    const epoch = getAccountEpoch();
     try {
       const list = await coreService.getRecords(filter);
+      if (epoch !== getAccountEpoch()) return; // résultat d'un ancien compte
       set((s) => ({
         records: { ...s.records, [key]: list },
         recordsStatus: { ...s.recordsStatus, [key]: 'success' },
       }));
     } catch {
+      if (epoch !== getAccountEpoch()) return;
       set((s) => ({ recordsStatus: { ...s.recordsStatus, [key]: 'error' } }));
     }
   },

@@ -162,7 +162,7 @@ export function CreateTontineScreen() {
                       borderColor: frequency === f.value ? Colors.primary : Colors.border,
                       backgroundColor: frequency === f.value ? Colors.primary : Colors.surface,
                     }}>
-                    <LabelText className={frequency === f.value ? 'font-inter-semibold text-white' : 'font-inter-semibold text-text-primary'}>
+                    <LabelText className="font-inter-semibold" style={{ color: frequency === f.value ? Colors.textOnPrimary : Colors.textPrimary }}>
                       {f.label}
                     </LabelText>
                   </Pressable>

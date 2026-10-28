@@ -1,6 +1,7 @@
 import { Pressable, View } from 'react-native';
 import { LabelText, SectionTitleText } from '@/components/ui/Typography';
 import { OccupancyBadge } from './OccupancyBadge';
+import { SyncBadge } from './SyncBadge';
 import { Colors } from '@/constants/theme';
 import { formatFcfa } from '@/utils/format';
 import type { LogementView } from '@/services/immobilierService';
@@ -31,6 +32,7 @@ export function LogementCard({ view, onPress }: { view: LogementView; onPress: (
       <LabelText numberOfLines={2} ellipsizeMode="tail" className="text-text-primary">
         {view.occupied ? (view.locataire?.name ?? 'Locataire') : 'Aucun locataire'}
       </LabelText>
+      <SyncBadge recordId={view.logement.id} />
       <View className="flex-row items-center gap-2">
         <LabelText className="flex-1 font-inter-semibold text-text-primary" numberOfLines={1}>
           {loyerText}

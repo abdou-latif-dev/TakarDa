@@ -11,17 +11,17 @@ interface QuickActionCardProps {
   onPress?: () => void;
 }
 
-/** Home-screen bento tile — icon in a soft orange badge, title + subtitle. */
+/** Tuile de l'accueil (maquettes Stitch) : pastille d'icône teintée en haut, titre + description en bas. */
 export function QuickActionCard({ icon, title, subtitle, onPress }: QuickActionCardProps) {
   return (
     <Pressable
       onPress={onPress}
-      className="flex-1 basis-[47%] gap-3 rounded-lg border border-border bg-surface p-gutter-card shadow-soft active:scale-[0.98]">
-      <View className="h-10 w-10 items-center justify-center rounded-full bg-primary-soft">
+      className="min-h-[140px] flex-1 basis-[47%] justify-between gap-3 rounded-lg border border-border bg-surface p-gutter-card shadow-soft active:scale-[0.98]">
+      <View className="h-9 w-9 items-center justify-center rounded-xl bg-primary-soft">
         <MaterialIcons name={icon} size={20} color={Colors.primary} />
       </View>
       <View>
-        <BodyLgText className="font-inter-semibold">{title}</BodyLgText>
+        <BodyLgText className="font-manrope-bold">{title}</BodyLgText>
         <LabelText>{subtitle}</LabelText>
       </View>
     </Pressable>

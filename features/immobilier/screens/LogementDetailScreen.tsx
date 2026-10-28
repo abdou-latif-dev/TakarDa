@@ -1,3 +1,4 @@
+import { reconcileAdvances } from '@/services/rentAdvanceService';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -27,6 +28,7 @@ export function LogementDetailScreen() {
 
   const load = useCallback(async () => {
     try {
+      await reconcileAdvances().catch(() => 0);
       const result = await loadLogementDetail(logementId);
       setMissingLogement(result === null);
       setDetail(result);
@@ -162,7 +164,7 @@ export function LogementDetailScreen() {
             />
 
             <View className="gap-3">
-              <SecondaryButton label="Voir le contrat" icon="description" onPress={() => router.push(`/immobilier/contrat/${contrat.id}`)} />
+              <SecondaryButton label="Infos" icon="info-outline" onPress={() => router.push(`/immobilier/contrat/${contrat.id}`)} />
               <SecondaryButton label="Modifier le logement" icon="edit" onPress={() => router.push(`/immobilier/logement/${logement.id}/edit`)} />
               <SecondaryButton label="Marquer le départ" icon="logout" onPress={onTerminer} />
             </View>

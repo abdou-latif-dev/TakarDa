@@ -51,7 +51,7 @@ export function SplashView() {
           style={{ shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 24, shadowOffset: { width: 0, height: 4 } }}>
           <MaterialIcons name="description" size={56} color={Colors.primary} />
         </View>
-        <DisplayText className="mt-2">FormEase</DisplayText>
+        <DisplayText className="mt-2">TakarDa</DisplayText>
         <BodyLgText className="text-text-secondary">Vos données. Vos processus. Simplifiés.</BodyLgText>
       </Animated.View>
 

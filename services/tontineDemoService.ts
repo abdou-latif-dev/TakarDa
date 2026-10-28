@@ -12,6 +12,7 @@
 // SECONDE fois, après avoir déjà reçu leur propre tour — exactement le cas
 // que le bug fixé par le nouveau modèle Tour devait cesser d'écraser).
 
+import { isDemoWorkspace } from './persistence';
 import { groupService } from './groupService';
 import { tontineService } from './tontineService';
 import type { Group } from '@/types/entities';
@@ -26,11 +27,24 @@ const DEMO_MEMBERS = [
   { firstName: 'Komlan', lastName: 'Adjo' },
 ] as const;
 
-export async function seedDemoTontine(): Promise<Group> {
-  const startDate = new Date(2026, 9, 7); // 7 octobre 2026
+export interface DemoTontineOptions {
+  /**
+   * Dates RELATIVES à aujourd'hui (départ 17 jours avant : le tour 3 est échu depuis 3 jours, avec 2 cotisations manquantes, donc une alerte « Tour en retard » cohérente),
+   * année dans le nom, noms de membres suffixés « (démo) ». Réservé à l'espace de démonstration (refus ailleurs). Sans option : le scénario de référence, daté du 7 octobre 2026.
+   */
+  relativeDates?: boolean;
+  /** Date de référence (tests) ; défaut : aujourd'hui. */
+  now?: Date;
+}
+
+export async function seedDemoTontine(options: DemoTontineOptions = {}): Promise<Group> {
+  const relative = options.relativeDates === true;
+  if (relative && !isDemoWorkspace()) throw new Error('Les exemples relatifs ne se créent que dans l’espace de démonstration.');
+  const now = options.now ?? new Date();
+  const startDate = relative ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 17) : new Date(2026, 9, 7); // référence : 7 octobre 2026
 
   const group = await groupService.createTontine({
-    name: DEMO_TONTINE_NAME,
+    name: relative ? `Solidarité ${now.getFullYear()} (démo)` : DEMO_TONTINE_NAME,
     contributionAmount: 25000,
     frequency: 'weekly',
     startDate: startDate.toISOString(),
@@ -40,7 +54,7 @@ export async function seedDemoTontine(): Promise<Group> {
 
   const members = [];
   for (const m of DEMO_MEMBERS) {
-    members.push(await groupService.addGuestMember(group.id, { firstName: m.firstName, lastName: m.lastName }));
+    members.push(await groupService.addGuestMember(group.id, { firstName: m.firstName, lastName: relative ? `${m.lastName} (démo)` : m.lastName }));
   }
   const [koffi, ama, , sena] = members; // Yao (index 2) and Komlan (index 4) stay unpaid
 

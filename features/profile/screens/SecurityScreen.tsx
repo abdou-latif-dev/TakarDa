@@ -6,33 +6,16 @@ import { AppHeader } from '@/components/ui/AppHeader';
 import { Card } from '@/components/ui/Card';
 import { SettingsRow } from '@/components/ui/SettingsRow';
 import { Switch } from '@/components/ui/Switch';
-import { SecondaryButton } from '@/components/ui/Button';
 import { BodyMdText, SectionTitleText } from '@/components/ui/Typography';
-import { useAuthStore } from '@/store/authStore';
 
 export function SecurityScreen() {
-  const logout = useAuthStore((s) => s.logout);
   const [biometric, setBiometric] = useState(true);
-
-  const onLogoutAll = () => {
-    Alert.alert('Déconnexion de tous les appareils', 'Toutes vos sessions actives seront fermées. Continuer ?', [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Déconnecter',
-        style: 'destructive',
-        onPress: async () => {
-          await logout();
-          router.replace('/(auth)/login');
-        },
-      },
-    ]);
-  };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <AppHeader title="Sécurité" showBack />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10">
-        <BodyMdText>Gérez vos paramètres de sécurité pour protéger votre compte FormEase et vos données.</BodyMdText>
+        <BodyMdText>Gérez vos paramètres de sécurité pour protéger votre compte TakarDa et vos données.</BodyMdText>
 
         <View className="gap-2">
           <SectionTitleText className="px-1 text-base">Connexion</SectionTitleText>
@@ -80,12 +63,6 @@ export function SecurityScreen() {
           </Card>
         </View>
 
-        <SecondaryButton
-          label="Déconnexion de tous les appareils"
-          icon="logout"
-          onPress={onLogoutAll}
-          className="border-error"
-        />
       </ScrollView>
     </SafeAreaView>
   );

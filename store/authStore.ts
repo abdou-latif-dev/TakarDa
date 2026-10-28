@@ -52,7 +52,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     await authService.logout();
-    set({ user: null, status: 'ready' });
+    // V1 sans compte : fermer une session ne supprime pas le profil local.
+    set({ user: await authService.restoreSession(), status: 'ready' });
   },
 
   updateProfile: async (patch) => {

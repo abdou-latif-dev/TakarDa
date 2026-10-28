@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { activityService } from '@/services/activityService';
+import { getAccountEpoch } from '@/services/cloudVisibility';
 import type { AsyncStatus } from './asyncStatus';
 import type { ActivityEvent } from '@/types/entities';
 
@@ -18,10 +19,13 @@ export const useActivityStore = create<ActivityState>((set) => ({
 
   fetch: async (groupId) => {
     set({ status: 'loading', error: null });
+    const epoch = getAccountEpoch();
     try {
       const events = await activityService.list(groupId);
+      if (epoch !== getAccountEpoch()) return; // résultat d'un ancien compte
       set({ events, status: 'success' });
     } catch (e) {
+      if (epoch !== getAccountEpoch()) return;
       set({ status: 'error', error: e instanceof Error ? e.message : 'Chargement impossible.' });
     }
   },

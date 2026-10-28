@@ -1,4 +1,5 @@
 import { delay, forms, submissions } from './db';
+import { isModuleLocked } from './moduleLock';
 
 export interface LocalStorageUsage {
   formsCount: number;
@@ -14,6 +15,7 @@ export interface LocalStorageUsage {
 export const storageUsageService = {
   async getUsage(): Promise<LocalStorageUsage> {
     await delay(200);
+    if (isModuleLocked('formulaires')) return { formsCount: 0, submissionsCount: 0, attachmentFieldsCount: 0 }; // compteurs sans propriétaire : masqués en contexte multi-compte
     const attachmentFieldsCount = forms.reduce(
       (sum, f) => sum + f.fields.filter((field) => field.type === 'image' || field.type === 'file' || field.type === 'signature').length,
       0,

@@ -32,13 +32,26 @@ import type {
   WorkflowRule,
 } from '@/types/entities';
 
-export const delay = (ms = 350) => new Promise((resolve) => setTimeout(resolve, ms));
+/** Latence réseau simulée. Volontairement nulle : les services gardent leurs appels
+ * à `delay()` (futur point d'insertion d'un appel distant) mais n'attendent plus.
+ * Le `setTimeout` conserve une vraie frontière asynchrone (l'interface respire entre
+ * deux lectures) ; le paramètre est ignoré. */
+export const SIMULATED_LATENCY_MS = 0;
+export const delay = (_ms?: number) => new Promise<void>((resolve) => setTimeout(resolve, SIMULATED_LATENCY_MS));
 
 export const CURRENT_USER_ID = 'u-me';
 
-export const users: User[] = [
-  { id: CURRENT_USER_ID, formeaseId: 'FE-4821', name: 'Utilisateur', email: '', createdAt: new Date().toISOString() },
-];
+/** Profil local par défaut (V1 sans compte). Utilisé pour amorcer `users` et par
+ * identityService pour le recréer si un ancien stockage n'en contenait pas. */
+export const defaultLocalUser = (): User => ({
+  id: CURRENT_USER_ID,
+  formeaseId: 'FE-4821',
+  name: 'Utilisateur',
+  email: '',
+  createdAt: new Date().toISOString(),
+});
+
+export const users: User[] = [defaultLocalUser()];
 
 export const groups: Group[] = [];
 export const memberships: Membership[] = [];
@@ -65,7 +78,10 @@ export const events: CoreEvent[] = [];
 export const documents: DocumentRef[] = [];
 export const workflowRules: WorkflowRule[] = [];
 
-export const genId = (prefix: string) => `${prefix}-${nanoid(8)}`;
+/** Longueur de la partie aléatoire des NOUVEAUX identifiants (96 bits). Les identifiants déjà stockés (8 caractères) restent valides
+ * et inchangés : ce sont des chaînes opaques, aucun lecteur n'en dépend de la longueur. */
+export const ID_RANDOM_LENGTH = 16;
+export const genId = (prefix: string) => `${prefix}-${nanoid(ID_RANDOM_LENGTH)}`;
 
 // Templates are app-provided content (not user data), so — unlike every
 // other collection above — they ship pre-seeded: a template library with

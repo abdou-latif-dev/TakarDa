@@ -59,7 +59,7 @@ export function AccountScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
-      <AppHeader title="Mon compte" showBack />
+      <AppHeader title="Mon profil" showBack />
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" keyboardShouldPersistTaps="handled">
         <View className="items-center gap-2">
           <Pressable onPress={pickPhoto} className="relative">
@@ -78,6 +78,7 @@ export function AccountScreen() {
           <EditableRow label="Email" value={email} onChangeText={setEmail} />
           <EditableRow label="Téléphone" value={phone} onChangeText={setPhone} isLast />
         </Card>
+        <LabelText>Ces informations restent sur cet appareil : aucun compte n&apos;est créé et rien n&apos;est envoyé en ligne.</LabelText>
 
         <PrimaryButton label="Enregistrer" loading={saving} onPress={onSave} />
       </ScrollView>

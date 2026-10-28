@@ -41,3 +41,29 @@ app-example
 # generated native folders
 /ios
 /android
+
+# N2 : configuration et état locaux du projet de TEST (jamais commités)
+/.n2-local/
+*.n2.local.json
+
+# Secrets et configuration privee (jamais commites)
+.env
+.env.*
+!.env.example
+google-services.json
+GoogleService-Info.plist
+service-account*.json
+*-adminsdk-*.json
+credentials.json
+*.keystore
+
+# Journaux et artefacts locaux
+firebase-debug*.log
+firestore-debug.log
+ui-debug.log
+*.apk
+*.aab
+
+# Journaux de crash locaux
+/hs_err_pid*.log
+/replay_pid*.log

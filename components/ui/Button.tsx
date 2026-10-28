@@ -15,7 +15,7 @@ interface ButtonBaseProps extends Omit<PressableProps, 'children'> {
   multilineLabel?: boolean;
 }
 
-/** h-52px pill, orange fill, white label — the app's single high-intent CTA style. */
+/** 48px, rayon 12, fond violet primaire, libellé blanc — l'unique style d'appel à l'action principal. */
 export function PrimaryButton({
   label,
   loading,
@@ -35,8 +35,8 @@ export function PrimaryButton({
       disabled={isDisabled}
       className={cn(
         multilineLabel
-          ? 'min-h-[52px] h-auto py-2 flex-row items-center justify-center rounded-xl px-3 shadow-soft-primary active:scale-[0.98]'
-          : 'h-[52px] flex-row items-center justify-center rounded-xl px-6 shadow-soft-primary active:scale-[0.98]',
+          ? 'min-h-12 h-auto py-2 flex-row items-center justify-center rounded-md px-3 shadow-soft-primary active:scale-[0.98]'
+          : 'h-12 flex-row items-center justify-center rounded-md px-6 shadow-soft-primary active:scale-[0.98]',
         fullWidth && 'w-full',
         isDisabled && 'opacity-50',
         className,
@@ -56,7 +56,7 @@ export function PrimaryButton({
   );
 }
 
-/** Outline variant — neutral surface, subtle border, used for secondary actions. */
+/** Secondaire « tonal » (comme WhatsApp / Telegram) : fond teinté de l'accent, texte et icône d'accent — se lit clairement comme un bouton, sans concurrencer l'action principale pleine. */
 export function SecondaryButton({
   label,
   loading,
@@ -76,27 +76,27 @@ export function SecondaryButton({
       disabled={isDisabled}
       className={cn(
         multilineLabel
-          ? 'min-h-[52px] h-auto py-2 flex-row items-center justify-center rounded-xl border border-border bg-surface px-3 active:scale-[0.98]'
-          : 'h-[52px] flex-row items-center justify-center rounded-xl border border-border bg-surface px-6 active:scale-[0.98]',
+          ? 'min-h-12 h-auto py-2 flex-row items-center justify-center rounded-md border border-primary/20 bg-primary-soft px-3 active:scale-[0.98]'
+          : 'h-12 flex-row items-center justify-center rounded-md border border-primary/20 bg-primary-soft px-6 active:scale-[0.98]',
         fullWidth && 'w-full',
         isDisabled && 'opacity-50',
         className,
       )}
       {...props}>
       {loading ? (
-        <ActivityIndicator color={Colors.textPrimary} />
+        <ActivityIndicator color={Colors.primary} />
       ) : (
         <View className="max-w-full flex-shrink flex-row items-center justify-center gap-2">
-          {icon && iconPosition === 'left' && <MaterialIcons name={icon} size={20} color={Colors.textPrimary} />}
-          <ButtonLabelText numberOfLines={multilineLabel ? 2 : undefined} className="flex-shrink text-center text-text-primary">{label}</ButtonLabelText>
-          {icon && iconPosition === 'right' && <MaterialIcons name={icon} size={20} color={Colors.textPrimary} />}
+          {icon && iconPosition === 'left' && <MaterialIcons name={icon} size={20} color={Colors.primary} />}
+          <ButtonLabelText numberOfLines={multilineLabel ? 2 : undefined} className="flex-shrink text-center" style={{ color: Colors.primary }}>{label}</ButtonLabelText>
+          {icon && iconPosition === 'right' && <MaterialIcons name={icon} size={20} color={Colors.primary} />}
         </View>
       )}
     </Pressable>
   );
 }
 
-/** Destructive variant — reserved for reject/delete/logout actions. */
+/** Destructive : fond rouge très clair, bordure fine, texte rouge (design system) — réservé aux actions de refus/suppression. */
 export function DestructiveButton({ label, loading, disabled, icon, fullWidth = true, multilineLabel = false, className, ...props }: ButtonBaseProps & { className?: string }) {
   const isDisabled = disabled || loading;
   return (
@@ -106,19 +106,19 @@ export function DestructiveButton({ label, loading, disabled, icon, fullWidth = 
       disabled={isDisabled}
       className={cn(
         multilineLabel
-          ? 'min-h-[52px] h-auto py-2 flex-row items-center justify-center rounded-xl bg-error px-3 active:scale-[0.98]'
-          : 'h-[52px] flex-row items-center justify-center rounded-xl bg-error px-6 active:scale-[0.98]',
+          ? 'min-h-12 h-auto py-2 flex-row items-center justify-center rounded-md border border-error/20 bg-error-container px-3 active:scale-[0.98]'
+          : 'h-12 flex-row items-center justify-center rounded-md border border-error/20 bg-error-container px-6 active:scale-[0.98]',
         fullWidth && 'w-full',
         isDisabled && 'opacity-50',
         className,
       )}
       {...props}>
       {loading ? (
-        <ActivityIndicator color="#FFFFFF" />
+        <ActivityIndicator color={Colors.errorOnContainer} />
       ) : (
         <View className="max-w-full flex-shrink flex-row items-center justify-center gap-2">
-          {icon && <MaterialIcons name={icon} size={20} color="#FFFFFF" />}
-          <ButtonLabelText numberOfLines={multilineLabel ? 2 : undefined} className="flex-shrink text-center text-white">{label}</ButtonLabelText>
+          {icon && <MaterialIcons name={icon} size={20} color={Colors.errorOnContainer} />}
+          <ButtonLabelText numberOfLines={multilineLabel ? 2 : undefined} className="flex-shrink text-center" style={{ color: Colors.errorOnContainer }}>{label}</ButtonLabelText>
         </View>
       )}
     </Pressable>

@@ -8,10 +8,41 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_BUILD_TARGET": "local"
+      }
+    },
+    "test-local": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_BUILD_TARGET": "local",
+        "EXPO_PUBLIC_APP_VARIANT": "test"
+      }
+    },
+    "test-cloud": {
+      "distribution": "internal",
+      "environment": "preview",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_BUILD_TARGET": "test",
+        "EXPO_PUBLIC_APP_VARIANT": "test"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "environment": "production",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_BUILD_TARGET": "production"
+      }
     }
   },
   "submit": {

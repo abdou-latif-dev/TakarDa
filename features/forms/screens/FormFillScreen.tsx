@@ -75,7 +75,7 @@ export function FormFillScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
-      <AppHeader showBack={step > 0} onBack={() => setStep((s) => s - 1)} title="FormEase" />
+      <AppHeader showBack={step > 0} onBack={() => setStep((s) => s - 1)} title="TakarDa" />
       <View className="gap-2 px-page-margin">
         <View className="flex-row items-center justify-between">
           <LabelText className="uppercase tracking-wide">

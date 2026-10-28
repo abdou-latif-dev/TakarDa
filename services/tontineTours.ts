@@ -9,6 +9,7 @@
 // ahead of time. A loop's date RANGE (for the "Boucle suivante" preview) is
 // pure computation via getLoopBounds() and needs no persisted Tour at all.
 
+import { assertModuleAvailable } from './moduleLock';
 import { groups, memberships, tours } from './db';
 import { calculateTourDate } from './tontineDates';
 import type { Contribution, Membership, TontineFrequency, Tour, TourStatus } from '@/types/entities';
@@ -61,6 +62,7 @@ function activeOrderedMembers(groupId: string): Membership[] {
  * clean at the next loop boundary.
  */
 export function ensureToursGenerated(groupId: string, uptoTourNumber: number): Tour[] {
+  assertModuleAvailable('tontine');
   const group = groups.find((g) => g.id === groupId);
   if (!group || !group.startDate || !group.frequency) return [];
 
@@ -101,10 +103,12 @@ export function ensureToursGenerated(groupId: string, uptoTourNumber: number): T
 }
 
 export function getToursForGroup(groupId: string): Tour[] {
+  assertModuleAvailable('tontine');
   return tours.filter((t) => t.groupId === groupId).sort((a, b) => a.tourNumber - b.tourNumber);
 }
 
 export function getTour(groupId: string, tourNumber: number): Tour | null {
+  assertModuleAvailable('tontine');
   return tours.find((t) => t.groupId === groupId && t.tourNumber === tourNumber) ?? null;
 }
 

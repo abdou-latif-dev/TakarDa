@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -13,6 +13,7 @@ import { formatRelativeTime } from '@/utils/format';
 import { useGroupStore } from '@/store/groupStore';
 import { useFormStore } from '@/store/formStore';
 import { seedDemoTontine } from '@/services/tontineDemoService';
+import { ensureInstalledTools, getMyTools, type MyTool } from '@/services/toolRegistryService';
 import { TontineListCard } from '@/components/tontine/TontineListCard';
 
 export function MesModelesScreen() {
@@ -21,6 +22,17 @@ export function MesModelesScreen() {
   const { forms, status: formsStatus, fetchForms } = useFormStore();
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const [seedingDemo, setSeedingDemo] = useState(false);
+  // « Mes outils » vient du registre (source unique), plus d'une liste écrite en dur ici.
+  const [myTools, setMyTools] = useState<MyTool[] | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      ensureInstalledTools()
+        .then(() => getMyTools())
+        .then((r) => setMyTools(r.owned))
+        .catch(() => setMyTools([]));
+    }, []),
+  );
 
   const onSeedDemo = async () => {
     setSeedingDemo(true);
@@ -58,7 +70,7 @@ export function MesModelesScreen() {
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <AppHeader
         title="Mes modèles"
-        trailing={<IconButton icon="add" onPress={() => router.push('/modals/create-menu')} />}
+        trailing={<IconButton icon="add" onPress={() => router.push('/mes-outils/catalogue' as never)} />}
       />
       {confirmation && (
         <View className="mx-page-margin mb-2 flex-row items-center gap-2 self-start rounded-full bg-success-container px-3 py-1.5">
@@ -70,32 +82,34 @@ export function MesModelesScreen() {
       )}
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
         <View className="gap-3">
-          <SectionHeader title="Mes outils" />
+          <SectionHeader title="Mes outils" action="Gérer" onAction={() => router.push('/mes-outils' as never)} />
+          {myTools !== null && myTools.length === 0 && (
+            <LabelText>Aucun outil ajouté. Choisissez-en dans le catalogue.</LabelText>
+          )}
           <View className="flex-row flex-wrap gap-3">
-            {[
-              { title: 'Immobilier', icon: 'home-work' as const, href: '/immobilier' as const },
-              { title: 'Factures', icon: 'receipt-long' as const, href: '/factures' as const },
-              { title: 'Commerce / Business', icon: 'storefront' as const, href: '/form/templates?category=commerce' as const },
-              { title: 'Tontines', icon: 'savings' as const, href: '/tontine/create' as const },
-            ].map((tool) => (
+            {(myTools ?? []).map((item) => (
               <Pressable
-                key={tool.title}
+                key={item.tool.id}
                 accessibilityRole="button"
-                onPress={() => router.push(tool.href as never)}
+                onPress={() => router.push(item.route as never)}
                 className="min-h-14 min-w-[47%] flex-1 flex-row items-center gap-2 rounded-xl border border-border bg-surface px-3 py-3 active:opacity-80">
-                <MaterialIcons name={tool.icon} size={20} color={Colors.primary} />
-                <LabelText className="flex-1 font-inter-semibold text-text-primary">{tool.title}</LabelText>
+                <MaterialIcons name={item.model.icon} size={20} color={Colors.primary} />
+                <LabelText className="flex-1 font-inter-semibold text-text-primary">{item.model.title}</LabelText>
                 <MaterialIcons name="chevron-right" size={18} color={Colors.emptyIcon} />
               </Pressable>
             ))}
           </View>
+          <SecondaryButton label="Catalogue" icon="dashboard-customize" onPress={() => router.push('/mes-outils/catalogue' as never)} />
           <LabelText>Chaque paiement reste validé manuellement par vous.</LabelText>
-          <SecondaryButton
-            label="Essayer avec une tontine de démonstration"
-            icon="auto-awesome"
-            loading={seedingDemo}
-            onPress={onSeedDemo}
-          />
+          {/* Données de démonstration : développement uniquement, jamais dans une version publiée. */}
+          {__DEV__ && (
+            <SecondaryButton
+              label="Essayer avec une tontine de démonstration"
+              icon="auto-awesome"
+              loading={seedingDemo}
+              onPress={onSeedDemo}
+            />
+          )}
         </View>
         {loading && tontines.length === 0 && forms.length === 0 && <LoadingState />}
         {hasError && <ErrorState onRetry={() => { fetchGroups(); fetchForms(); }} />}
@@ -105,8 +119,8 @@ export function MesModelesScreen() {
             icon="dashboard-customize"
             title="Aucun modèle pour l'instant"
             description="Utilisez un modèle de la bibliothèque ou créez une tontine pour commencer."
-            actionLabel="Créer"
-            onAction={() => router.push('/modals/create-menu')}
+            actionLabel="Ouvrir le catalogue"
+            onAction={() => router.push('/mes-outils/catalogue' as never)}
           />
         )}
 

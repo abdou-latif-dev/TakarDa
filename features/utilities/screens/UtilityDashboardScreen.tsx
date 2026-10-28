@@ -72,6 +72,7 @@ export function UtilityDashboardScreen({ module }: { module: UtilityModule }) {
                 <View className="flex-1"><SecondaryButton label="Participants" icon="group" onPress={() => go(`/${module}/participants`)} /></View>
                 <View className="flex-1"><SecondaryButton label="Historique" icon="history" onPress={() => go(`/${module}/historique`)} /></View>
               </View>
+              <SecondaryButton label="Statistiques" icon="bar-chart" onPress={() => go(`/${module}/statistiques`)} />
             </View>
 
             {data.legacyReleves > 0 && (

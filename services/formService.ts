@@ -1,7 +1,8 @@
 import { activityEvents, CURRENT_USER_ID, delay, forms, genId, submissions } from './db';
+import { guardService } from './moduleLock';
 import type { FormDefinition, FormField } from '@/types/entities';
 
-export const formService = {
+export const formService = guardService('formulaires', {
   async listMyForms(): Promise<FormDefinition[]> {
     await delay();
     return forms
@@ -100,4 +101,4 @@ export const formService = {
     form.updatedAt = new Date().toISOString();
     return form;
   },
-};
+});

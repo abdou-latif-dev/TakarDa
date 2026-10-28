@@ -474,7 +474,7 @@ export function RepartitionScreen() {
 
         <View className="gap-3">
           <SectionTitleText className="text-base">{source === 'participations' ? 'Participants' : isStandalone ? 'Participants' : 'Relevés'}</SectionTitleText>
-          {source === 'participations' && <LabelText>Les index viennent des relevés enregistrés : rien à ressaisir ici. Décochez un participant pour l'exclure de cette facture.</LabelText>}
+          {source === 'participations' && <LabelText>Les index viennent des relevés enregistrés : rien à ressaisir ici. Décochez un participant pour l&apos;exclure de cette facture.</LabelText>}
           {rows.map((row) => {
             const periode = typeof facture.values.mois === 'string' ? facture.values.mois : '';
             const showDetails = mode === 'proportionnel' && row.selected;

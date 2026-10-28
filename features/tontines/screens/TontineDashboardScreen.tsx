@@ -79,7 +79,7 @@ export function TontineDashboardScreen() {
             setDeleting(true);
             try {
               await deleteTontine(groupId);
-              router.replace({ pathname: '/(tabs)/modeles', params: { justDeleted: 'Tontine supprimée' } });
+              router.replace({ pathname: '/tontine' as never, params: { justDeleted: 'Tontine supprimée' } });
             } finally {
               setDeleting(false);
             }
@@ -209,7 +209,7 @@ export function TontineDashboardScreen() {
             <LabelText>Cotisations</LabelText>
             <HeadlineText className="text-lg">{formatFcfa(summary.collected)}</HeadlineText>
           </Card>
-          <Card className="flex-1 gap-1 border-error-container bg-error-container/10">
+          <Card className="flex-1 gap-1 border-error/30 bg-error-container">
             <LabelText>Retards</LabelText>
             <HeadlineText className="text-lg text-error">{summary.lateCount}</HeadlineText>
           </Card>

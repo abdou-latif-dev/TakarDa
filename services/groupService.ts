@@ -1,5 +1,6 @@
+import { recordActivity } from './activityService';
+import { guardService } from './moduleLock';
 import {
-  activityEvents,
   contributions,
   CURRENT_USER_ID,
   delay,
@@ -60,7 +61,7 @@ export interface CreateTontineInput {
   includeSelfAsMember?: boolean;
 }
 
-export const groupService = {
+export const groupService = guardService('tontine', {
   async listMyGroups(): Promise<Group[]> {
     await delay();
     const myGroupIds = new Set(memberships.filter((m) => m.userId === CURRENT_USER_ID).map((m) => m.groupId));
@@ -121,12 +122,15 @@ export const groupService = {
     // No TontineCycle is created here anymore — tours are generated lazily
     // by tontineTours.ensureToursGenerated() the first time a screen asks
     // for one (see the Tour/Boucle audit, 2026-09-30).
-    activityEvents.unshift({
-      id: genId('a'),
+    recordActivity({
       type: 'group_created',
       title: 'Tontine créée',
       description: `${group.name} a été créée.`,
+      module: 'tontine',
       groupId: group.id,
+      entityType: 'tontine',
+      entityId: group.id,
+      dedupeKey: `tontine-created:${group.id}`,
       at: now,
     });
     return group;
@@ -147,12 +151,14 @@ export const groupService = {
     group.contributionAmount = input.contributionAmount;
     group.frequency = input.frequency;
     group.updatedAt = new Date().toISOString();
-    activityEvents.unshift({
-      id: genId('a'),
+    recordActivity({
       type: 'group_updated',
       title: 'Tontine modifiée',
       description: `${group.name} a été mise à jour.`,
+      module: 'tontine',
       groupId,
+      entityType: 'tontine',
+      entityId: groupId,
       at: group.updatedAt,
     });
     return group;
@@ -163,7 +169,7 @@ export const groupService = {
     await delay();
     const group = groups.find((g) => g.id === groupId);
     const user = users.find((u) => u.formeaseId.toLowerCase() === formeaseId.trim().toLowerCase());
-    if (!user) throw new Error("Aucun utilisateur FormEase ne correspond à cet ID.");
+    if (!user) throw new Error("Aucun utilisateur TakarDa ne correspond à cet ID.");
     const alreadyMember = memberships.some((m) => m.groupId === groupId && m.userId === user.id && m.status === 'active');
     if (alreadyMember) throw new Error('Cet utilisateur fait déjà partie de la tontine.');
 
@@ -180,13 +186,16 @@ export const groupService = {
     memberships.push(membership);
     if (group) group.memberCount += 1;
     recomputePositions(groupId);
-    activityEvents.unshift({
-      id: genId('a'),
+    recordActivity({
       type: 'member_joined',
       title: 'Nouveau membre',
       description: `${membership.displayName} a rejoint ${group?.name ?? 'la tontine'}.`,
+      module: 'tontine',
       groupId,
       userName: membership.displayName,
+      entityType: 'membre',
+      entityId: membership.id,
+      dedupeKey: `member-added:${membership.id}`,
       at: membership.joinedAt,
     });
     return membership;
@@ -211,13 +220,16 @@ export const groupService = {
     memberships.push(membership);
     if (group) group.memberCount += 1;
     recomputePositions(groupId);
-    activityEvents.unshift({
-      id: genId('a'),
+    recordActivity({
       type: 'member_invited',
       title: 'Membre invité ajouté',
       description: `${displayName} a été ajouté·e à ${group?.name ?? 'la tontine'}.`,
+      module: 'tontine',
       groupId,
       userName: displayName,
+      entityType: 'membre',
+      entityId: membership.id,
+      dedupeKey: `member-added:${membership.id}`,
       at: membership.joinedAt,
     });
     return membership;
@@ -232,13 +244,14 @@ export const groupService = {
       const m = memberships.find((mem) => mem.id === id);
       if (m) m.position = i + 1;
     });
-    activityEvents.unshift({
-      id: genId('a'),
+    recordActivity({
       type: 'order_updated',
       title: "Ordre de passage modifié",
       description: `L'ordre de réception de ${group?.name ?? 'la tontine'} a été mis à jour.`,
+      module: 'tontine',
       groupId,
-      at: new Date().toISOString(),
+      entityType: 'tontine',
+      entityId: groupId,
     });
   },
 
@@ -260,12 +273,14 @@ export const groupService = {
     for (let i = tontineCycles.length - 1; i >= 0; i--) {
       if (tontineCycles[i].groupId === groupId) tontineCycles.splice(i, 1);
     }
-    activityEvents.unshift({
-      id: genId('a'),
+    recordActivity({
       type: 'tontine_deleted',
       title: 'Tontine supprimée',
       description: `${removed.name} a été supprimée.`,
-      at: new Date().toISOString(),
+      module: 'tontine',
+      entityType: 'tontine',
+      entityId: groupId,
+      dedupeKey: `tontine-deleted:${groupId}`,
     });
   },
-};
+});

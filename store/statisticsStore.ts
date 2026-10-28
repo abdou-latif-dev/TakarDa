@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { statisticsService } from '@/services/statisticsService';
+import { getAccountEpoch } from '@/services/cloudVisibility';
 import type { AsyncStatus } from './asyncStatus';
 import type { StatisticsOverview } from '@/types/entities';
 
@@ -15,11 +16,13 @@ export const useStatisticsStore = create<StatisticsState>((set) => ({
 
   fetchOverview: async () => {
     set({ status: 'loading' });
+    const epoch = getAccountEpoch();
     try {
       const overview = await statisticsService.getOverview();
+      if (epoch !== getAccountEpoch()) return; // résultat d'un ancien compte
       set({ overview, status: 'success' });
     } catch {
-      set({ status: 'error' });
+      if (epoch === getAccountEpoch()) set({ status: 'error' });
     }
   },
 }));

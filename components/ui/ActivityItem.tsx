@@ -24,10 +24,23 @@ const ACTIVITY_ICON: Record<ActivityType, ComponentProps<typeof MaterialIcons>['
   cycle_completed: 'flag',
   form_deleted: 'delete-outline',
   tontine_deleted: 'delete-outline',
+  'immobilier.bien_created': 'home-work',
+  'immobilier.bien_deleted': 'delete-outline',
+  'immobilier.logement_created': 'meeting-room',
+  'immobilier.contrat_created': 'description',
+  'immobilier.contrat_ended': 'event-busy',
+  'immobilier.loyer_paid': 'payments',
+  'utility.participant_added': 'person-add',
+  'utility.releves_saved': 'speed',
+  'utility.facture_validated': 'receipt-long',
+  'utility.part_paid': 'payments',
+  'tool.installed': 'add-circle-outline',
+  'tool.hidden': 'visibility-off',
+  'tool.restored': 'visibility',
 };
 
 /** Timeline row: tinted icon circle, title + description, relative timestamp, optional amount. */
-export function ActivityItem({ event, isLast }: { event: ActivityEvent; isLast?: boolean }) {
+export function ActivityItem({ event, isLast, variant = 'timeline' }: { event: ActivityEvent; isLast?: boolean; variant?: 'timeline' | 'card' }) {
   // Computed inside the component (not a module-level const) so it re-reads
   // `Colors` fresh every render — a module-level object literal would
   // capture whatever `Colors.X` happened to be at import time and freeze
@@ -49,17 +62,51 @@ export function ActivityItem({ event, isLast }: { event: ActivityEvent; isLast?:
     cycle_completed: Colors.success,
     form_deleted: Colors.error,
     tontine_deleted: Colors.error,
+    'immobilier.bien_created': Colors.primary,
+    'immobilier.bien_deleted': Colors.error,
+    'immobilier.logement_created': Colors.primary,
+    'immobilier.contrat_created': Colors.primary,
+    'immobilier.contrat_ended': Colors.textSecondary,
+    'immobilier.loyer_paid': Colors.success,
+    'utility.participant_added': Colors.textSecondary,
+    'utility.releves_saved': Colors.primary,
+    'utility.facture_validated': Colors.primary,
+    'utility.part_paid': Colors.success,
+    'tool.installed': Colors.primary,
+    'tool.hidden': Colors.textSecondary,
+    'tool.restored': Colors.primary,
   };
   const tint = ACTIVITY_TINT[event.type];
-  return (
-    <View className="flex-row gap-3">
-      <View className="items-center">
-        <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: `${tint}1A` }}>
-          <MaterialIcons name={ACTIVITY_ICON[event.type]} size={18} color={tint} />
+  // Maquettes : pastille grise neutre ; seuls les états sémantiques (réussite, erreur, alerte) gardent leur couleur.
+  const neutral = tint === Colors.primary || tint === Colors.textSecondary || tint === Colors.textMuted;
+  if (variant === 'card') {
+    // Carte individuelle (écran Activités) : pas de bordure, juste le fond de carte et l'ombre douce.
+    return (
+      <View className="flex-row items-start gap-3.5 rounded-xl bg-surface p-4 shadow-soft">
+        <View className="h-11 w-11 items-center justify-center rounded-full bg-surface-container">
+          <MaterialIcons name={ACTIVITY_ICON[event.type]} size={20} color={neutral ? Colors.textSecondary : tint} />
         </View>
-        {!isLast && <View className="mt-1 w-px flex-1 bg-border" />}
+        <View className="min-w-0 flex-1 gap-0.5">
+          <BodyLgText className="font-inter-semibold" numberOfLines={2}>{event.title}</BodyLgText>
+          <BodyMdText numberOfLines={3}>{event.description}</BodyMdText>
+          <LabelText className="mt-1">{formatRelativeTime(event.at)}</LabelText>
+        </View>
+        {typeof event.amount === 'number' && (
+          <View className="rounded-full bg-success-container px-2.5 py-1">
+            <LabelText className="font-inter-semibold" style={{ color: Colors.success }}>+{formatThousands(event.amount)} FCFA</LabelText>
+          </View>
+        )}
       </View>
-      <View className={cn('flex-1 flex-row items-start justify-between pb-5', isLast && 'pb-0')}>
+    );
+  }
+  return (
+    <View className="flex-row gap-3.5">
+      <View className="items-center">
+        <View className="h-10 w-10 items-center justify-center rounded-full bg-surface-container">
+          <MaterialIcons name={ACTIVITY_ICON[event.type]} size={18} color={neutral ? Colors.textSecondary : tint} />
+        </View>
+      </View>
+      <View className={cn('flex-1 flex-row items-start justify-between', !isLast && 'border-b border-border pb-4')}>
         <View className="flex-1 pr-2">
           <BodyLgText className="font-inter-semibold">{event.title}</BodyLgText>
           <BodyMdText>{event.description}</BodyMdText>

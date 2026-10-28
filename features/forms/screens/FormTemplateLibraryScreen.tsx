@@ -81,7 +81,7 @@ export function FormTemplateLibraryScreen() {
               onPress={() => onUse(t.id)}
               disabled={applyingId === t.id}
               className="rounded-full bg-primary px-4 py-2 active:opacity-80">
-              <LabelText className="font-inter-semibold text-white">{applyingId === t.id ? '...' : 'Utiliser'}</LabelText>
+              <LabelText className="font-inter-semibold" style={{ color: Colors.textOnPrimary }}>{applyingId === t.id ? '...' : 'Utiliser'}</LabelText>
             </Pressable>
           </View>
         ))}

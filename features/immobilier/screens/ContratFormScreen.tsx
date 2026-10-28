@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, useWindowDimensions, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -12,6 +12,9 @@ import { TextField } from '@/components/ui/TextField';
 import { LoadingState } from '@/components/ui/States';
 import { BodyMdText, LabelText, SectionTitleText } from '@/components/ui/Typography';
 import { Colors } from '@/constants/theme';
+import { MonthsAmountField } from '@/components/immobilier/MonthsAmountField';
+import { describeDueDay, entryTotal } from '@/services/rentTermsService';
+import { formatFcfa } from '@/utils/format';
 import {
   createLocataireEtContrat,
   CUISINE_OPTIONS,
@@ -46,7 +49,6 @@ function ChoiceRow({ label, options, value, onChange }: { label: string; options
  * étape séparée. `?logementId=` présélectionne un logement vacant. */
 export function ContratFormScreen() {
   const { bienId: routeBienId, logementId: presetLogementId } = useLocalSearchParams<{ bienId: string; logementId?: string }>();
-  const { width } = useWindowDimensions();
   const [biens, setBiens] = useState<BienSummary[] | null>(null);
   const [bienId, setBienId] = useState<string>(routeBienId);
   const [views, setViews] = useState<LogementView[] | null>(null);
@@ -123,7 +125,7 @@ export function ContratFormScreen() {
     if (!loyerMensuel) return setError('Indiquez le loyer.');
     const jourEcheance = jour.trim() ? Number(jour) : null;
     if (jourEcheance !== null && (!Number.isInteger(jourEcheance) || jourEcheance < 1 || jourEcheance > 31)) {
-      return setError('Le jour d’échéance doit être compris entre 1 et 31, ou laissé vide.');
+      return setError('Le jour de paiement doit être compris entre 1 et 31, ou laissé vide.');
     }
     setSaving(true);
     try {
@@ -158,8 +160,6 @@ export function ContratFormScreen() {
       </SafeAreaView>
     );
   }
-
-  const wide = width >= 720;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
@@ -224,11 +224,17 @@ export function ContratFormScreen() {
           <Card className="gap-3">
             <SectionTitleText className="text-base">Loyer et conditions</SectionTitleText>
             <TextField label="Loyer mensuel (FCFA) *" value={loyer} onChangeText={setLoyer} keyboardType="numeric" icon="payments" placeholder="25000" />
-            <View className={wide ? 'flex-row gap-3' : 'gap-3'}>
-              <TextField containerClassName={wide ? 'flex-1' : undefined} label="Caution (FCFA)" value={caution} onChangeText={setCaution} keyboardType="numeric" icon="payments" />
-              <TextField containerClassName={wide ? 'flex-1' : undefined} label="Avance (FCFA)" value={avance} onChangeText={setAvance} keyboardType="numeric" icon="payments" />
-            </View>
-            <TextField label="Jour d'échéance du loyer (1-31)" value={jour} onChangeText={setJour} keyboardType="numeric" placeholder="Ex. 5 (facultatif)" />
+            <MonthsAmountField label="Avance" value={avance} onChange={setAvance} monthlyRent={parseAmount(loyer)} />
+            <MonthsAmountField label="Caution" value={caution} onChange={setCaution} monthlyRent={parseAmount(loyer)} />
+            {entryTotal(parseAmount(avance), parseAmount(caution)) > 0 && (
+              <View className="gap-0.5 rounded-md bg-primary-soft p-3">
+                <LabelText>Total à l’entrée (avance + caution)</LabelText>
+                <SectionTitleText className="text-base">{formatFcfa(entryTotal(parseAmount(avance), parseAmount(caution)))}</SectionTitleText>
+                <LabelText>L’avance et la caution restent deux montants distincts : la caution n’est jamais un loyer.</LabelText>
+              </View>
+            )}
+            <TextField label="Jour de paiement du loyer (1 à 31)" value={jour} onChangeText={setJour} keyboardType="numeric" placeholder="Ex. 5 (facultatif)" />
+            <LabelText>{describeDueDay(Number(jour)) ? `Le loyer est attendu ${describeDueDay(Number(jour))}. Indicatif : un loyer est en retard une fois le mois écoulé.` : 'Le jour du mois où le loyer est attendu. Indicatif : un loyer est en retard une fois le mois écoulé.'}</LabelText>
           </Card>
 
           <Card className="gap-4">

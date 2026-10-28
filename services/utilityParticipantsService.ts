@@ -16,12 +16,14 @@
 // stricte, jamais d'écrasement) ; ce fichier ajoute la saisie par période pour
 // des participants identifiés et la vue en lecture d'une période.
 
+import { recordActivity } from './activityService';
 import { coreService } from './coreService';
 import { ensureFacturesToolCached } from './facturesService';
 import { ensureImmobilierTool, isValidPhone } from './immobilierService';
 import {
   fournisseurKey,
   loadLockedReleveIds,
+  periodeLabel,
   resolveParticipantReleves,
   resolvePreviousReleve,
   saveReleve,
@@ -129,7 +131,17 @@ async function createParticipation(module: UtilityModule, participant: Participa
     if (existing) {
       if (!existing.archived) throw new UtilityBillingError('PARTICIPANT_DEJA_PRESENT', `${participant.label} participe déjà à ${module.toUpperCase()}.`);
       // Retour d'un participant archivé : on réactive sa participation (historique intact).
-      return (await hydrate([toParticipation(await coreService.updateRecord(existing.record.id, { statusKey: 'actif' }))!]))[0];
+      const restored = await coreService.updateRecord(existing.record.id, { statusKey: 'actif' });
+      recordActivity({
+        type: 'utility.participant_added',
+        title: 'Participant de retour',
+        description: `${participant.label} participe de nouveau à ${module.toUpperCase()}.`,
+        module,
+        entityType: 'participation',
+        entityId: restored.id,
+        dedupeKey: `participant-restored:${restored.id}:${restored.updatedAt}`,
+      });
+      return (await hydrate([toParticipation(restored)!]))[0];
     }
     const record = await coreService.createRecord({
       toolId,
@@ -137,6 +149,15 @@ async function createParticipation(module: UtilityModule, participant: Participa
       statusKey: 'actif',
       // Pas de copie du nom : il est lu depuis la personne (ExternalContact) à l'affichage.
       values: { fournisseur: module, participant_type: participant.type, participant_id: participant.id!, source },
+    });
+    recordActivity({
+      type: 'utility.participant_added',
+      title: 'Participant ajouté',
+      description: `${participant.label} participe à ${module.toUpperCase()}.`,
+      module,
+      entityType: 'participation',
+      entityId: record.id,
+      dedupeKey: `participant-added:${record.id}`,
     });
     return (await hydrate([toParticipation(record)!]))[0];
   } finally {
@@ -298,6 +319,17 @@ export async function saveRelevesPeriode(input: { fournisseur: string; periode: 
     saved.push(
       await saveReleve({ toolId: ents.tool.id, releveEntityDefinitionId: ents.releveDefinition.id, fournisseur: module, periode: input.periode, participant, index }),
     );
+  }
+  if (saved.length > 0) {
+    recordActivity({
+      type: 'utility.releves_saved',
+      title: 'Relevés enregistrés',
+      description: `${module.toUpperCase()} · ${periodeLabel(input.periode)} · ${saved.length} relevé${saved.length > 1 ? 's' : ''}`,
+      module,
+      entityType: 'releves',
+      entityId: saved[0].id,
+      dedupeKey: `releves-saved:${saved.map((r) => r.id).sort().join(',')}`,
+    });
   }
   return saved;
 }

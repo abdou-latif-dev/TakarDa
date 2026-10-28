@@ -1,93 +1,65 @@
-import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Controller, useForm } from 'react-hook-form';
 import { MaterialIcons } from '@expo/vector-icons';
 import { DisplayText, BodyLgText, LabelText, ButtonLabelText } from '@/components/ui/Typography';
 import { TextField } from '@/components/ui/TextField';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
-import { useAuthStore } from '@/store/authStore';
+import { checkEmailPassword } from '@/services/cloudAuthErrors';
+import { useCloudStore } from '@/store/cloudStore';
 
-interface LoginForm {
-  identifier: string;
-  password: string;
-}
-
+/** Connexion au compte cloud (Firebase, e-mail et mot de passe). Facultatif : TakarDa fonctionne sans compte, et se
+ * connecter ne synchronise ni ne migre aucune donnée. */
 export function LoginScreen() {
-  const login = useAuthStore((s) => s.login);
-  const status = useAuthStore((s) => s.status);
-  const { control, handleSubmit } = useForm<LoginForm>({ defaultValues: { identifier: '', password: '' } });
+  const signIn = useCloudStore((s) => s.signIn);
+  const busy = useCloudStore((s) => s.busy);
+  const storeError = useCloudStore((s) => s.error);
+  const clearMessages = useCloudStore((s) => s.clearMessages);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  const onSubmit = async (values: LoginForm) => {
+  const onSubmit = async () => {
+    clearMessages();
+    const check = checkEmailPassword(email, password);
+    setLocalError(check.message);
+    if (!check.ok) return;
     try {
-      await login(values);
-      router.replace('/(tabs)');
-    } catch (e) {
-      Alert.alert('Connexion impossible', e instanceof Error ? e.message : 'Réessayez.');
+      await signIn(email, password);
+      router.replace('/account/cloud' as never);
+    } catch {
+      // le message est dans le store
     }
   };
+
+  const error = localError ?? storeError;
 
   return (
     <SafeAreaView className="flex-1 bg-background">
       <ScrollView contentContainerClassName="flex-grow justify-center px-page-margin py-8" keyboardShouldPersistTaps="handled">
         <View className="items-center gap-3">
           <View className="h-16 w-16 items-center justify-center rounded-lg bg-background-secondary">
-            <MaterialIcons name="description" size={28} color={Colors.primary} />
+            <MaterialIcons name="cloud-queue" size={28} color={Colors.primary} />
           </View>
-          <DisplayText className="text-[26px]">Bienvenue sur FormEase</DisplayText>
-          <BodyLgText className="text-text-secondary">Connectez-vous pour continuer</BodyLgText>
+          <DisplayText className="text-[26px]">Connexion</DisplayText>
+          <BodyLgText className="text-center text-text-secondary">
+            Un compte est facultatif. Il permet de retrouver vos biens et logements sur un autre téléphone. Sans compte, TakarDa fonctionne comme avant.
+          </BodyLgText>
         </View>
 
         <View className="mt-8 gap-4">
-          <Controller
-            control={control}
-            name="identifier"
-            render={({ field }) => (
-              <TextField
-                placeholder="Email ou téléphone (optionnel)"
-                autoCapitalize="none"
-                keyboardType="email-address"
-                value={field.value}
-                onChangeText={field.onChange}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="password"
-            render={({ field }) => (
-              <TextField
-                placeholder="Mot de passe (optionnel)"
-                secureToggle
-                value={field.value}
-                onChangeText={field.onChange}
-              />
-            )}
-          />
+          <TextField label="Adresse e-mail" placeholder="vous@exemple.com" autoCapitalize="none" autoCorrect={false} keyboardType="email-address" value={email} onChangeText={setEmail} />
+          <TextField label="Mot de passe" secureToggle value={password} onChangeText={setPassword} />
+          {error ? <LabelText className="font-inter-semibold" style={{ color: Colors.error }}>{error}</LabelText> : null}
 
           <Pressable onPress={() => router.push('/(auth)/forgot-password')} hitSlop={8} className="self-end">
             <LabelText className="font-inter-semibold text-primary">Mot de passe oublié ?</LabelText>
           </Pressable>
 
-          <PrimaryButton
-            label="Se connecter"
-            loading={status === 'authenticating'}
-            onPress={handleSubmit(onSubmit)}
-            className="mt-2"
-          />
-
-          <View className="my-2 flex-row items-center gap-3">
-            <View className="h-px flex-1 bg-border" />
-            <LabelText>ou</LabelText>
-            <View className="h-px flex-1 bg-border" />
-          </View>
-
-          <SecondaryButton
-            label="Continuer avec Google"
-            icon="alternate-email"
-            onPress={() => Alert.alert('Connexion Google', 'Bientôt disponible.')}
-          />
+          <PrimaryButton label="Se connecter" loading={busy} onPress={onSubmit} className="mt-2" />
+          <SecondaryButton label="Continuer sans compte" onPress={() => router.replace('/(tabs)')} />
         </View>
 
         <View className="mt-8 flex-row justify-center gap-1">

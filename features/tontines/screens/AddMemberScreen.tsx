@@ -30,9 +30,9 @@ export function AddMemberScreen() {
     setSearching(true);
     try {
       await addFormeaseMember(groupId, formeaseId.trim());
-      Alert.alert('Membre ajouté', 'Cet utilisateur FormEase a rejoint la tontine.', [{ text: 'OK', onPress: () => router.back() }]);
+      Alert.alert('Membre ajouté', 'Cet utilisateur TakarDa a rejoint la tontine.', [{ text: 'OK', onPress: () => router.back() }]);
     } catch (e) {
-      Alert.alert('Introuvable', e instanceof Error ? e.message : "Vérifiez l'ID FormEase saisi.");
+      Alert.alert('Introuvable', e instanceof Error ? e.message : "Vérifiez l'ID TakarDa saisi.");
     } finally {
       setSearching(false);
     }
@@ -63,15 +63,15 @@ export function AddMemberScreen() {
                 <MaterialIcons name="person-search" size={20} color={Colors.primary} />
               </View>
               <View className="flex-1">
-                <SectionTitleText className="text-base">Ajouter un utilisateur FormEase</SectionTitleText>
-                <LabelText>Trouvez-le via son ID FormEase</LabelText>
+                <SectionTitleText className="text-base">Ajouter un utilisateur TakarDa</SectionTitleText>
+                <LabelText>Trouvez-le via son ID TakarDa</LabelText>
               </View>
             </View>
             <TextField placeholder="Ex: FE-4821" value={formeaseId} onChangeText={setFormeaseId} autoCapitalize="characters" />
             <SecondaryButton label="Rechercher" icon="search" loading={searching} onPress={onSearch} />
             {myFormeaseId && (
               <LabelText>
-                Chaque membre retrouve son ID FormEase ({myFormeaseId} pour vous) dans son profil, sous son nom.
+                Chaque membre retrouve son ID TakarDa ({myFormeaseId} pour vous) dans son profil, sous son nom.
               </LabelText>
             )}
           </Card>
@@ -105,7 +105,7 @@ export function AddMemberScreen() {
           </Card>
 
           <BodyMdText className="text-center">
-            Une personne n&apos;a pas besoin d&apos;avoir FormEase pour participer à votre tontine. Vous pourrez gérer sa
+            Une personne n&apos;a pas besoin d&apos;avoir TakarDa pour participer à votre tontine. Vous pourrez gérer sa
             participation pour elle.
           </BodyMdText>
         </ScrollView>

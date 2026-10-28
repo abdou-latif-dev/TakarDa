@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { SectionTitleText } from './Typography';
 import { IconButton } from './Button';
 import { cn } from '@/utils/cn';
+import { goBackOrHome } from '@/utils/navigation';
 
 interface AppHeaderProps {
   title?: string;
@@ -17,7 +18,7 @@ export function AppHeader({ title, showBack, onBack, trailing, className }: AppH
   return (
     <View className={cn('h-14 flex-row items-center justify-between px-page-margin', className)}>
       <View className="w-11">
-        {showBack && <IconButton icon="arrow-back-ios-new" size={18} onPress={onBack ?? (() => router.back())} />}
+        {showBack && <IconButton icon="arrow-back-ios-new" size={18} onPress={onBack ?? (() => goBackOrHome(router))} />}
       </View>
       {title ? (
         <SectionTitleText numberOfLines={1} className="flex-1 text-center">

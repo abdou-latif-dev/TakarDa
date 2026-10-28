@@ -47,7 +47,7 @@ export function FormQRScreen() {
           <SecondaryButton
             label="Partager"
             icon="ios-share"
-            onPress={() => Share.share({ message: `Mon dossier FormEase — code : ${activeSubmission.qrToken}` })}
+            onPress={() => Share.share({ message: `Mon dossier TakarDa — code : ${activeSubmission.qrToken}` })}
           />
           <SecondaryButton
             label="Enregistrer"

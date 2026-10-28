@@ -27,7 +27,7 @@ export function ScanScreen() {
       return;
     }
     if (outcome.kind === 'not_found') {
-      setNotice({ title: 'QR code invalide', description: "Ce code ne correspond à aucun dossier FormEase." });
+      setNotice({ title: 'QR code invalide', description: "Ce code ne correspond à aucun dossier TakarDa." });
     } else if (outcome.kind === 'expired') {
       setNotice({ title: 'QR code expiré', description: 'Ce dossier a expiré. Demandez un nouveau code au client.' });
     } else {
@@ -43,7 +43,7 @@ export function ScanScreen() {
         <MaterialIcons name="camera-alt" size={40} color="#FFFFFF" />
         <HeadlineText className="text-center text-white">Accès caméra requis</HeadlineText>
         <BodyMdText className="text-center text-white/70">
-          FormEase a besoin de la caméra pour scanner les QR codes des dossiers clients.
+          TakarDa a besoin de la caméra pour scanner les QR codes des dossiers clients.
         </BodyMdText>
         <PrimaryButton label="Autoriser la caméra" onPress={requestPermission} />
         <SecondaryButton label="Retour" onPress={() => router.back()} />
@@ -72,7 +72,7 @@ export function ScanScreen() {
           <Pressable onPress={() => router.back()} className="h-11 w-11 items-center justify-center rounded-full bg-black/40">
             <MaterialIcons name="arrow-back" size={20} color="#FFFFFF" />
           </Pressable>
-          <BodyLgText className="font-manrope-bold text-white">FormEase</BodyLgText>
+          <BodyLgText className="font-manrope-bold text-white">TakarDa</BodyLgText>
           <Pressable onPress={() => setTorch((t) => !t)} className="h-11 w-11 items-center justify-center rounded-full bg-black/40">
             <MaterialIcons name={torch ? 'flash-on' : 'flash-off'} size={20} color="#FFFFFF" />
           </Pressable>

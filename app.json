@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "FormEase",
+    "name": "TakarDa",
     "slug": "FormEase",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "formease",
+    "scheme": "takarda",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.formease.app"
+      "bundleIdentifier": "com.takarda.app"
     },
     "android": {
-      "package": "com.formease.app",
+      "package": "com.takarda.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -22,7 +22,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "permissions": [
+      "blockedPermissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ]
@@ -48,13 +48,17 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "FormEase a besoin de la caméra pour scanner les QR codes des dossiers clients."
+          "cameraPermission": "TakarDa utilise la caméra pour scanner des codes QR.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "FormEase a besoin d'accéder à vos photos pour joindre des documents et votre photo de profil."
+          "photosPermission": "TakarDa accède à vos photos pour joindre des documents et choisir votre photo de profil.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ]
     ],

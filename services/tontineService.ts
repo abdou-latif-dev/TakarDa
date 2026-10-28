@@ -1,4 +1,6 @@
-import { activityEvents, contributions, delay, genId, groups, memberships } from './db';
+import { recordActivity } from './activityService';
+import { guardService } from './moduleLock';
+import { contributions, delay, genId, groups, memberships } from './db';
 import { formatFcfa } from '@/utils/format';
 import { ensureToursGenerated, getLoopBounds, getMemberStatusForTour, getTour, getToursForGroup, getTourStatus, type LoopBounds } from './tontineTours';
 import type { Contribution, ContributionStatus, Group, Membership, Tour, TourStatus } from '@/types/entities';
@@ -52,7 +54,7 @@ function activeOrderedMembers(groupId: string): Membership[] {
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 }
 
-export const tontineService = {
+export const tontineService = guardService('tontine', {
   /** Summary for one tour — defaults to the tontine's current tour
    * (group.currentRound), or pass `tourNumber` explicitly for the tour
    * detail screen / history. Generates the tour on demand if it doesn't
@@ -190,14 +192,17 @@ export const tontineService = {
       else contributions.unshift(contribution);
       recorded.push(contribution);
 
-      activityEvents.unshift({
-        id: genId('a'),
+      recordActivity({
         type: 'contribution_added',
         title: 'Paiement de cotisation validé',
         description: `${member?.displayName ?? 'Un membre'} a payé ${formatFcfa(tour.expectedAmountPerMember)} (Tour ${tour.tourNumber}).`,
+        module: 'tontine',
         groupId: input.groupId,
         userName: member?.displayName,
         amount: tour.expectedAmountPerMember,
+        entityType: 'cotisation',
+        entityId: contribution.id,
+        dedupeKey: `contribution-paid:${contribution.id}`,
         at: now,
       });
     }
@@ -217,14 +222,16 @@ export const tontineService = {
     ensureToursGenerated(groupId, nextTourNumber);
     const nextTour = getTour(groupId, nextTourNumber);
     const beneficiary = nextTour ? memberships.find((m) => m.id === nextTour.beneficiaryMemberId) : null;
-    activityEvents.unshift({
-      id: genId('a'),
+    recordActivity({
       type: 'order_updated',
       title: 'Tour suivant',
       description: `${beneficiary?.displayName ?? 'Le prochain membre'} est maintenant bénéficiaire de ${group.name} (Tour ${nextTourNumber}).`,
+      module: 'tontine',
       groupId,
       userName: beneficiary?.displayName,
-      at: new Date().toISOString(),
+      entityType: 'tontine',
+      entityId: groupId,
+      dedupeKey: `tour-next:${groupId}:${nextTourNumber}`,
     });
   },
-};
+});

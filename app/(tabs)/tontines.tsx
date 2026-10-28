@@ -1,3 +1,6 @@
-import { MesTontinesScreen } from '@/features/tontines/screens/MesTontinesScreen';
+import { Redirect } from 'expo-router';
 
-export default MesTontinesScreen;
+/** Ancienne liste des tontines (onglet masqué) : l'entrée de la Tontine est désormais son espace. */
+export default function LegacyTontinesRoute() {
+  return <Redirect href={'/tontine' as never} />;
+}

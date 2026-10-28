@@ -231,10 +231,12 @@ describe('Écrans et points d\'entrée', () => {
     expect(card).toMatch(/payé\$\{row\.total > 1 \? 's' : ''\}/);
   });
 
-  it('entrées visibles : cartes CEET et TDE sur l\'accueil, boutons Factures vers les accueils, fournisseur présélectionné', () => {
-    const home = read('features/home/screens/HomeScreen.tsx');
-    expect(home).toMatch(/title="CEET"[\s\S]*router\.push\('\/ceet'/);
-    expect(home).toMatch(/title="TDE"[\s\S]*router\.push\('\/tde'/);
+  it('entrées visibles : CEET et TDE ouverts depuis l\'accueil (outils installés), boutons Factures vers les accueils, fournisseur présélectionné', () => {
+    // Phase 7 : l'accueil n'écrit plus de cartes CEET/TDE en dur ; il liste les outils installés et ouvre la route de leur modèle.
+    expect(read('features/home/screens/HomeScreen.tsx')).toMatch(/item\.route/);
+    const catalog = read('services/toolCatalogService.ts');
+    expect(catalog).toMatch(/key: 'ceet'[\s\S]*?route: '\/ceet'/);
+    expect(catalog).toMatch(/key: 'tde'[\s\S]*?route: '\/tde'/);
     const list = read('features/factures/screens/FacturesListScreen.tsx');
     expect(list).toMatch(/router\.push\('\/ceet' as never\)/);
     expect(list).toMatch(/router\.push\('\/tde' as never\)/);

@@ -1,0 +1,622 @@
+rules_version = '2';
+
+// Règles de sécurité Firestore de TakarDa — V1 : biens et logements d'Immobilier, dans un espace personnel.
+//
+// Principes :
+//  - TOUT est refusé par défaut (dernière règle) : aucun accès public, aucun accès sans connexion.
+//  - Un compte ne lit et n'écrit que dans un espace dont il est membre (V1 : le propriétaire seul).
+//  - L'espace personnel d'un compte a pour identifiant `personal_<uid>` : un compte ne peut créer que le sien.
+//  - Les documents de `records` sont validés (type, champs autorisés, révision strictement croissante, auteur).
+//  - La suppression habituelle est logique (`deletedAt`). La suppression PHYSIQUE n'existe que pour l'effacement du compte :
+//    un propriétaire ne peut supprimer que ses propres documents (profil, espace personnel `personal_<uid>` dont il est le seul
+//    membre, et les enregistrements de cet espace). Jamais un espace partagé, jamais le document d'un autre compte.
+//  - Le partage (membres, rôles) n'est pas ouvert en V1 : `memberUids` ne peut pas être modifié par un client.
+//
+// À publier seulement après les tests des règles (voir services/__tests__/firestoreRules.emulator.test.ts) et avec
+// l'accord explicite du propriétaire du projet.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Connecté ET par e-mail / mot de passe : un compte anonyme ou d'un autre fournisseur n'a aucun accès.
+    function signedIn() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'password';
+    }
+
+    function spacePath(spaceId) {
+      return /databases/$(database)/documents/spaces/$(spaceId);
+    }
+
+    function isMember(spaceId) {
+      return signedIn()
+        && exists(spacePath(spaceId))
+        && request.auth.uid in get(spacePath(spaceId)).data.memberUids;
+    }
+
+    // Propriétaire de CET espace personnel : l'espace est `personal_<uid>`, créé par ce compte, dont il est le seul membre.
+    function isPersonalSpaceOwner(spaceId) {
+      return signedIn()
+        && spaceId == 'personal_' + request.auth.uid
+        && exists(spacePath(spaceId))
+        && get(spacePath(spaceId)).data.ownerUid == request.auth.uid
+        && get(spacePath(spaceId)).data.memberUids == [request.auth.uid];
+    }
+
+    // Compte « vivant » : aucun marqueur `deletedAccounts/<uid>`. Ce marqueur est posé UNE FOIS, de façon irréversible, au début de la suppression du compte.
+    // Raison : à la suppression d'un compte, Authentication ne révoque PAS les jetons déjà émis ; pendant leur durée de vie (jusqu'à une heure), un autre appareil
+    // du même compte pourrait RECRÉER profil, espace, enregistrements ou espaces partagés derrière la suppression (constaté sur le projet de test : test A6).
+    // Toute CRÉATION (et toute modification de données) exige un compte vivant ; la suppression et le verrou d'effacement restent permis, pour que la procédure aille à son terme.
+    // Appelée seulement après `signedIn()` (le jeton est alors présent).
+    function accountLive() {
+      return !exists(/databases/$(database)/documents/deletedAccounts/$(request.auth.uid));
+    }
+
+    // ---- Profil minimal du compte : seulement le sien ------------------------------------------------------------
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+        && accountLive()
+        && request.resource.data.keys().hasOnly(['defaultSpaceId', 'createdAt'])
+        && request.resource.data.defaultSpaceId == 'personal_' + request.auth.uid
+        && request.resource.data.createdAt is string;
+      allow update: if false;
+      // Effacement du compte : son propre profil seulement.
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // ---- Espaces ------------------------------------------------------------------------------------------------
+    match /spaces/{spaceId} {
+      // Lecture d'un espace inexistant : permise seulement pour SON espace personnel (la création s'appuie sur cette lecture).
+      allow read: if signedIn()
+        && (resource == null ? spaceId == 'personal_' + request.auth.uid : request.auth.uid in resource.data.memberUids);
+
+      // Création : uniquement son propre espace personnel, propriétaire unique.
+      allow create: if signedIn()
+        && accountLive()
+        && spaceId == 'personal_' + request.auth.uid
+        && request.resource.data.keys().hasOnly(['ownerUid', 'memberUids', 'name', 'createdAt', 'schemaVersion'])
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.memberUids == [request.auth.uid]
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.createdAt is string
+        && request.resource.data.schemaVersion == 1;
+
+      // Deux modifications seulement, jamais mélangées ; aucun autre champ ne peut être ajouté, retiré ou modifié
+      // (ownerUid, memberUids, createdAt, schemaVersion, champs inconnus). Le partage viendra plus tard, avec ses propres règles.
+      //  1. Renommer : le propriétaire change `name` (toujours une chaîne).
+      //  2. Verrou de suppression : le propriétaire de SON espace personnel (seul membre) pose `deletionLockedAt` (chaîne).
+      //     Le verrou est irréversible (aucune règle ne permet de le modifier ni de le retirer) : tant que l'espace existe,
+      //     les enregistrements ne peuvent plus être créés ni modifiés (voir `records`), seulement supprimés.
+      allow update: if signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && (
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+            && request.resource.data.name is string
+            && request.resource.data.name.size() >= 1
+            && request.resource.data.name.size() <= 100)
+          ||
+          (spaceId == 'personal_' + request.auth.uid
+            && resource.data.memberUids == [request.auth.uid]
+            && resource.data.get('deletionLockedAt', null) == null
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletionLockedAt'])
+            && request.resource.data.deletionLockedAt is string
+            && request.resource.data.deletionLockedAt.size() >= 1
+            && request.resource.data.deletionLockedAt.size() <= 40)
+        );
+
+      // Effacement du compte : uniquement son espace personnel, dont il est le seul membre (jamais un espace partagé).
+      // Les sous-collections ne sont PAS supprimées avec le document : le client supprime d'abord les enregistrements.
+      allow delete: if signedIn()
+        && spaceId == 'personal_' + request.auth.uid
+        && resource.data.ownerUid == request.auth.uid
+        && resource.data.memberUids == [request.auth.uid];
+
+      // ---- Biens et logements ----------------------------------------------------------------------------------
+      match /records/{recordId} {
+        function validShape() {
+          return request.resource.data.keys().hasOnly(['kind', 'values', 'statusKey', 'createdBy', 'createdAt', 'updatedAt', 'rev', 'deletedAt'])
+            && request.resource.data.keys().hasAll(['kind', 'values', 'createdBy', 'createdAt', 'updatedAt', 'rev'])
+            && request.resource.data.kind in ['bien', 'logement']
+            && request.resource.data.values is map
+            && request.resource.data.values.keys().size() <= 20
+            && (!('statusKey' in request.resource.data) || request.resource.data.statusKey == null || request.resource.data.statusKey is string)
+            && request.resource.data.createdBy is string
+            && request.resource.data.createdAt is string
+            && request.resource.data.createdAt.size() <= 40
+            && request.resource.data.updatedAt is string
+            && request.resource.data.updatedAt.size() <= 40
+            && request.resource.data.rev is int
+            && (!('deletedAt' in request.resource.data) || request.resource.data.deletedAt == null || request.resource.data.deletedAt is string);
+        }
+
+        // Espace verrouillé (effacement du compte en cours) : plus aucune création ni modification, quel que soit l'appareil.
+        function spaceUnlocked() {
+          return get(spacePath(spaceId)).data.get('deletionLockedAt', null) == null;
+        }
+
+        allow read: if isMember(spaceId);
+
+        // Création : jamais d'enregistrement déjà supprimé (`deletedAt` absent ou nul).
+        allow create: if isMember(spaceId)
+          && accountLive()
+          && spaceUnlocked()
+          && validShape()
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.rev == 1
+          && request.resource.data.get('deletedAt', null) == null;
+
+        // Révision strictement croissante, auteur et type inchangés, pas de modification d'un document supprimé.
+        // `get('deletedAt', null)` : un document créé sans `deletedAt` reste modifiable (le champ absent vaut « non supprimé »).
+        allow update: if isMember(spaceId)
+          && accountLive()
+          && spaceUnlocked()
+          && validShape()
+          && resource.data.get('deletedAt', null) == null
+          && request.resource.data.rev == resource.data.rev + 1
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.kind == resource.data.kind
+          // Suppression logique : quand `deletedAt` devient non nul, seuls `deletedAt` et `rev` changent (le contenu
+          // ne peut pas être réécrit en même temps). Une modification normale garde `deletedAt` nul.
+          && (request.resource.data.get('deletedAt', null) == null
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedAt', 'rev']));
+
+        // Suppression physique : uniquement par le propriétaire de son espace personnel (effacement du compte), y compris
+        // les enregistrements déjà supprimés logiquement. Dans le cadre normal, on pose `deletedAt`.
+        allow delete: if isPersonalSpaceOwner(spaceId);
+      }
+      // >>> P4 SYNC BEGIN — documents de synchronisation (voir docs/p4-transport-firebase.md). CANDIDAT : non publié.
+      //
+      // Chemin : spaces/personal_<uid>/syncRecords/{recordId}. Distinct de `records` (V1) : aucune règle V1 n'est modifiée.
+      //  - lecture et écriture : uniquement le propriétaire, dans SON espace personnel (jamais un autre compte, jamais un espace partagé) ;
+      //  - création : révision 1, non supprimé ; modification : révision exactement « ancienne + 1 », type, propriétaire et date de
+      //    création inchangés ; suppression LOGIQUE (seuls les champs de suppression changent) ; restauration explicite (idem) ;
+      //  - faits financiers (paiements, cotisations, corrections) : CRÉATION SEULEMENT, jamais modifiés ni supprimés logiquement ;
+      //  - `serverUpdatedAt` doit être l'heure du serveur ; espace verrouillé (effacement du compte) : plus aucune écriture ;
+      //  - suppression physique : réservée à la procédure d'effacement du compte — propriétaire de son espace personnel ET espace verrouillé.
+      //  - PÉRIMÈTRE V1 (Immobilier seul) : seuls les types immobiliers et `core.contact` sont admis ; CEET / TDE, tontines, formulaires et tout
+      //    autre type sont REFUSÉS par les règles, quelle que soit la couche applicative.
+      // Limites (voir la documentation) : les règles ne valident pas le contenu imbriqué de `body`, ni la cohérence `refs`/`body`,
+      // ni l'existence des parents, ni qu'un `core.contact` est bien le locataire d'un contrat (aucune requête entre documents) ; ces contrôles
+      // restent côté appareil (voir syncScope.ts).
+      match /syncRecords/{recordId} {
+        function syncKinds() {
+          return ['immobilier.bien', 'immobilier.logement', 'immobilier.contrat', 'immobilier.paiement', 'immobilier.depense', 'immobilier.correction_paiement', 'core.contact'];
+        }
+        function financialKinds() {
+          return ['immobilier.paiement', 'immobilier.correction_paiement'];
+        }
+        function incoming() {
+          return request.resource.data;
+        }
+        function ownSpace() {
+          return signedIn() && spaceId == 'personal_' + request.auth.uid;
+        }
+        function syncUnlocked() {
+          return get(spacePath(spaceId)).data.get('deletionLockedAt', null) == null;
+        }
+        function shortText(value) {
+          return value is string && value.size() >= 1 && value.size() <= 40;
+        }
+        function validSyncShape() {
+          return incoming().keys().hasOnly(['kind', 'schemaVersion', 'ownerUid', 'statusKey', 'createdAt', 'updatedAt', 'body', 'refs', 'rev', 'deleted', 'deletedAt', 'restoredAt', 'lastOpId', 'serverUpdatedAt'])
+            && incoming().keys().hasAll(['kind', 'schemaVersion', 'ownerUid', 'statusKey', 'createdAt', 'updatedAt', 'body', 'refs', 'rev', 'deleted', 'deletedAt', 'restoredAt', 'lastOpId', 'serverUpdatedAt'])
+            && incoming().kind is string
+            && incoming().kind in syncKinds()
+            && incoming().schemaVersion is int
+            && incoming().schemaVersion >= 1
+            && incoming().schemaVersion <= 1000
+            && incoming().ownerUid == request.auth.uid
+            && (incoming().statusKey == null || (incoming().statusKey is string && incoming().statusKey.size() <= 100))
+            && shortText(incoming().createdAt)
+            && shortText(incoming().updatedAt)
+            && incoming().body is map
+            && incoming().body.size() <= 100
+            && incoming().refs is map
+            && incoming().refs.size() <= 20
+            && !('toolId' in incoming().body)
+            && !('entityDefinitionId' in incoming().body)
+            && !('cloudOwnerUid' in incoming().body)
+            && !('id' in incoming().body)
+            && !('statusKey' in incoming().body)
+            && incoming().rev is int
+            && incoming().deleted is bool
+            && (incoming().deletedAt == null || shortText(incoming().deletedAt))
+            && (incoming().restoredAt == null || shortText(incoming().restoredAt))
+            && incoming().lastOpId is string
+            && incoming().lastOpId.size() >= 1
+            && incoming().lastOpId.size() <= 100
+            && incoming().serverUpdatedAt == request.time;
+        }
+        function editing() {
+          return resource.data.deleted == false
+            && incoming().deleted == false
+            && incoming().deletedAt == null
+            && incoming().restoredAt == resource.data.restoredAt;
+        }
+        function deleting() {
+          return resource.data.deleted == false
+            && incoming().deleted == true
+            && shortText(incoming().deletedAt)
+            && incoming().diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'rev', 'lastOpId', 'serverUpdatedAt']);
+        }
+        function restoring() {
+          return resource.data.deleted == true
+            && incoming().deleted == false
+            && incoming().deletedAt == null
+            && shortText(incoming().restoredAt)
+            && incoming().diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'restoredAt', 'rev', 'lastOpId', 'serverUpdatedAt']);
+        }
+
+        allow read: if ownSpace() && isMember(spaceId);
+
+        allow create: if ownSpace()
+          && accountLive()
+          && isMember(spaceId)
+          && syncUnlocked()
+          && validSyncShape()
+          && incoming().rev == 1
+          && incoming().deleted == false
+          && incoming().deletedAt == null
+          && incoming().restoredAt == null;
+
+        // Un fait financier existant n'est JAMAIS modifié : aucune branche ne le permet.
+        allow update: if ownSpace()
+          && accountLive()
+          && isMember(spaceId)
+          && syncUnlocked()
+          && validSyncShape()
+          && !(resource.data.kind in financialKinds())
+          && incoming().kind == resource.data.kind
+          && resource.data.ownerUid == request.auth.uid
+          && incoming().createdAt == resource.data.createdAt
+          && incoming().schemaVersion >= resource.data.schemaVersion
+          && incoming().rev == resource.data.rev + 1
+          && (editing() || deleting() || restoring());
+
+        // Suppression PHYSIQUE : jamais une opération ordinaire. Réservée à la procédure d'effacement du compte : propriétaire de son
+        // espace personnel ET espace déjà verrouillé (`deletionLockedAt`, posé de façon irréversible avant la purge).
+        allow delete: if isPersonalSpaceOwner(spaceId) && !syncUnlocked();
+      }
+      // <<< P4 SYNC END
+
+    }
+
+    // >>> P5 MODULES BEGIN — modules partagés (voir docs/f3a-espaces-partages.md). CANDIDAT : NON PUBLIÉ ; exécuté dans l'émulateur local seulement (docs/preuve-emulateur-f3.md), jamais sur un projet réel.
+    //
+    // Chemins : modules/{moduleId} ; …/members/{uid} ; …/requests/{uid} ; …/syncRecords/{recordId} ; …/tenantViews/{uid}/items/{itemId}.
+    // Distinct de `spaces` et de `users` : aucune règle existante n'est modifiée. Décisions de V1 : l'administrateur est le PROPRIÉTAIRE du module
+    // (un seul) ; les membres ne sont que des locataires ; le propriétaire est immuable ; un module ne se découvre jamais (la seule liste permise est celle de SES propres modules).
+    //  - un accès est ouvert seulement par un membre `active`, de rôle `locataire`, dont `accessUntil` (Timestamp) n'est pas dépassé ;
+    //    révocation, départ, expiration, demande en attente ou refusée : lecture refusée à la requête suivante (la fiche du membre est relue à chaque fois) ;
+    //  - une demande est créée par SON auteur, en attente et non tranchée ; seul le propriétaire la tranche ; un membre n'est ajouté que dans la
+    //    MÊME opération qu'une approbation (`getAfter`) ; personne ne s'auto-approuve ;
+    //  - les données du module (`syncRecords`) sont réservées au propriétaire ; le locataire ne lit QUE sa vue (`tenantViews/{son uid}`), projection
+    //    sans champ privé publiée par le propriétaire ; il n'écrit jamais rien ;
+    //  - suppression : jamais ordinaire (suppression logique des données). Elle n'existe que pour l'EFFACEMENT du compte propriétaire, sur le modèle de l'espace
+    //    personnel : le propriétaire pose d'abord un VERROU irréversible (`deletionLockedAt`) ; sous le verrou plus aucune écriture n'est permise, les locataires perdent
+    //    leur lecture, et le propriétaire seul peut supprimer membres, données puis le module lui-même. Une demande en attente peut être annulée par son auteur ;
+    //    le propriétaire peut effacer toute demande (lever un refus).
+    // Limites (à connaître) : aucun plafond de membres n'est imposé par les règles (contrôle côté application) ; le contenu imbriqué de `body` n'est pas validé ;
+    // chaque contrôle d'accès relit la fiche du membre (lecture facturée) ; un locataire qui supprime son propre compte laisse sa fiche et sa demande dans l'espace du
+    // propriétaire (historique de location) : à traiter avec la politique de confidentialité (F6).
+    match /modules/{moduleId} {
+      function modulePath() {
+        return /databases/$(database)/documents/modules/$(moduleId);
+      }
+      function memberPath(uid) {
+        return /databases/$(database)/documents/modules/$(moduleId)/members/$(uid);
+      }
+      function requestPath(uid) {
+        return /databases/$(database)/documents/modules/$(moduleId)/requests/$(uid);
+      }
+      function isOwner() {
+        return signedIn()
+          && exists(modulePath())
+          && get(modulePath()).data.ownerUid == request.auth.uid;
+      }
+      // Module verrouillé (effacement du compte propriétaire en cours) : plus aucune écriture, plus aucune lecture de locataire ; seule la suppression est permise au propriétaire.
+      function moduleLocked() {
+        return exists(modulePath()) && get(modulePath()).data.get('deletionLockedAt', null) != null;
+      }
+      function moduleOpen() {
+        return exists(modulePath()) && get(modulePath()).data.get('deletionLockedAt', null) == null;
+      }
+      function isSelf(uid) {
+        return signedIn() && request.auth.uid == uid;
+      }
+      function activeTenant(uid) {
+        return isSelf(uid)
+          && moduleOpen()
+          && exists(memberPath(uid))
+          && get(memberPath(uid)).data.role == 'locataire'
+          && get(memberPath(uid)).data.state == 'active'
+          && (get(memberPath(uid)).data.accessUntil == null || request.time < get(memberPath(uid)).data.accessUntil);
+      }
+      function shortText(value) {
+        return value is string && value.size() >= 1 && value.size() <= 40;
+      }
+
+      // ---- Le module -------------------------------------------------------------------------------------------------------
+      allow get: if isOwner() || (signedIn() && activeTenant(request.auth.uid));
+      // Liste : seulement SES propres modules (la requête doit contenir `where ownerUid == son uid`) ; jamais ceux d'un autre. Sert à retrouver ses espaces sur un
+      // nouvel appareil et à les effacer avec le compte.
+      allow list: if signedIn() && resource.data.ownerUid == request.auth.uid;
+
+      allow create: if signedIn()
+        && accountLive()
+        && moduleId.matches('mod_[a-z0-9]{24}')
+        && request.resource.data.keys().hasOnly(['ownerUid', 'type', 'name', 'createdAt', 'schemaVersion'])
+        && request.resource.data.keys().hasAll(['ownerUid', 'type', 'name', 'createdAt', 'schemaVersion'])
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.type in ['immobilier']
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1
+        && request.resource.data.name.size() <= 100
+        && shortText(request.resource.data.createdAt)
+        && request.resource.data.schemaVersion == 1;
+
+      // Deux modifications, jamais mélangées ; propriétaire, type, date de création et version sont immuables.
+      //  1. Renommer (module non verrouillé).
+      //  2. Verrou d'effacement : le propriétaire pose `deletionLockedAt` (chaîne). IRRÉVERSIBLE : aucune règle ne permet de le modifier ni de le retirer.
+      allow update: if isOwner()
+        && moduleOpen()
+        && (
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+            && request.resource.data.name is string
+            && request.resource.data.name.size() >= 1
+            && request.resource.data.name.size() <= 100)
+          ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletionLockedAt'])
+            && shortText(request.resource.data.deletionLockedAt))
+        );
+
+      // Suppression du module : le propriétaire, SOUS verrou seulement (effacement du compte). Ses sous-collections sont à vider avant : le client le fait d'abord.
+      allow delete: if isOwner() && moduleLocked();
+
+      // ---- Les membres (V1 : des locataires) -------------------------------------------------------------------------------
+      match /members/{uid} {
+        function memberKeys() {
+          return ['uid', 'role', 'state', 'contractId', 'accessUntil', 'addedBy', 'createdAt', 'updatedAt'];
+        }
+        function validMemberTypes() {
+          return (request.resource.data.contractId == null || (request.resource.data.contractId is string && request.resource.data.contractId.size() >= 1 && request.resource.data.contractId.size() <= 100))
+            && (request.resource.data.accessUntil == null || request.resource.data.accessUntil is timestamp)
+            && shortText(request.resource.data.updatedAt);
+        }
+        function changed() {
+          return request.resource.data.diff(resource.data).affectedKeys();
+        }
+
+        allow get: if isOwner() || isSelf(uid);
+        allow list: if isOwner();
+
+        // Création : le propriétaire, dans la MÊME opération que l'approbation de la demande de ce membre ; jamais le propriétaire lui-même.
+        allow create: if isOwner()
+          && accountLive()
+          && moduleOpen()
+          && uid != request.auth.uid
+          && request.resource.data.keys().hasOnly(memberKeys())
+          && request.resource.data.keys().hasAll(memberKeys())
+          && request.resource.data.uid == uid
+          && request.resource.data.role == 'locataire'
+          && request.resource.data.state == 'active'
+          && request.resource.data.addedBy == request.auth.uid
+          && shortText(request.resource.data.createdAt)
+          && validMemberTypes()
+          && getAfter(requestPath(uid)).data.state == 'approved'
+          && getAfter(requestPath(uid)).data.decidedBy == request.auth.uid;
+
+        // Trois modifications, jamais mélangées ; uid, rôle, auteur et date de création sont immuables.
+        //  1. Propriétaire, changement d'état : révoquer (active → revoked) ou rétablir (revoked|left → active), avec la date et la fin d'accès.
+        //  2. Propriétaire, membre actif : contrat lié, fin d'accès, date.
+        //  3. Le membre lui-même : partir (active → left), rien d'autre.
+        allow update: if moduleOpen()
+          && changed().size() > 0
+          && validMemberTypes()
+          && (
+            (isOwner()
+              && request.resource.data.state != resource.data.state
+              && changed().hasOnly(['state', 'updatedAt', 'accessUntil'])
+              && ((resource.data.state == 'active' && request.resource.data.state == 'revoked')
+                || (resource.data.state in ['revoked', 'left'] && request.resource.data.state == 'active')))
+            ||
+            (isOwner()
+              && request.resource.data.state == resource.data.state
+              && resource.data.state == 'active'
+              && changed().hasOnly(['contractId', 'accessUntil', 'updatedAt']))
+            ||
+            (isSelf(uid)
+              && accountLive()
+              && resource.data.state == 'active'
+              && request.resource.data.state == 'left'
+              && changed().hasOnly(['state', 'updatedAt']))
+          );
+
+        // L'historique des membres est conservé : on révoque, on ne supprime pas. Exception : l'effacement du module (sous verrou), par le propriétaire.
+        allow delete: if isOwner() && moduleLocked();
+      }
+
+      // ---- Les demandes d'accès --------------------------------------------------------------------------------------------
+      match /requests/{uid} {
+        function requestKeys() {
+          return ['uid', 'state', 'label', 'decidedBy', 'createdAt', 'updatedAt'];
+        }
+
+        allow get: if isOwner() || isSelf(uid);
+        allow list: if isOwner();
+
+        // « Rejoindre » : l'utilisateur connecté crée SA demande, en attente et non tranchée, sur un module existant dont il n'est ni propriétaire ni membre.
+        // Une demande refusée reste en place (elle bloque) tant que le propriétaire ne l'a pas effacée ; un ancien membre passe par le propriétaire.
+        allow create: if isSelf(uid)
+          && accountLive()
+          && moduleOpen()
+          && !isOwner()
+          && !exists(memberPath(uid))
+          && request.resource.data.keys().hasOnly(requestKeys())
+          && request.resource.data.keys().hasAll(requestKeys())
+          && request.resource.data.uid == uid
+          && request.resource.data.state == 'pending'
+          && request.resource.data.decidedBy == null
+          && (request.resource.data.label == null || (request.resource.data.label is string && request.resource.data.label.size() >= 1 && request.resource.data.label.size() <= 60))
+          && shortText(request.resource.data.createdAt)
+          && shortText(request.resource.data.updatedAt);
+
+        // Trancher : le propriétaire seul, une fois, jamais sa propre demande ; seuls l'état, le décideur et la date changent.
+        allow update: if isOwner()
+          && moduleOpen()
+          && uid != request.auth.uid
+          && resource.data.state == 'pending'
+          && request.resource.data.state in ['approved', 'refused']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state', 'decidedBy', 'updatedAt'])
+          && request.resource.data.decidedBy == request.auth.uid
+          && shortText(request.resource.data.updatedAt);
+
+        // Le demandeur efface SA demande tant qu'elle est en attente (annulation) ou approuvée (il retire le nom qu'il avait saisi) ; une demande REFUSÉE reste (elle bloque).
+        allow delete: if isOwner() || (isSelf(uid) && resource.data.state in ['pending', 'approved']);
+      }
+
+      // ---- Les données du module : le propriétaire seul ---------------------------------------------------------------------
+      match /syncRecords/{recordId} {
+        function syncKinds() {
+          return ['immobilier.bien', 'immobilier.logement', 'immobilier.contrat', 'immobilier.paiement', 'immobilier.depense', 'immobilier.correction_paiement', 'core.contact'];
+        }
+        function financialKinds() {
+          return ['immobilier.paiement', 'immobilier.correction_paiement'];
+        }
+        function incoming() {
+          return request.resource.data;
+        }
+        function validSyncShape() {
+          return incoming().keys().hasOnly(['kind', 'schemaVersion', 'ownerUid', 'statusKey', 'createdAt', 'updatedAt', 'body', 'refs', 'rev', 'deleted', 'deletedAt', 'restoredAt', 'lastOpId', 'serverUpdatedAt'])
+            && incoming().keys().hasAll(['kind', 'schemaVersion', 'ownerUid', 'statusKey', 'createdAt', 'updatedAt', 'body', 'refs', 'rev', 'deleted', 'deletedAt', 'restoredAt', 'lastOpId', 'serverUpdatedAt'])
+            && incoming().kind is string
+            && incoming().kind in syncKinds()
+            && incoming().schemaVersion is int
+            && incoming().schemaVersion >= 1
+            && incoming().schemaVersion <= 1000
+            && incoming().ownerUid == request.auth.uid
+            && (incoming().statusKey == null || (incoming().statusKey is string && incoming().statusKey.size() <= 100))
+            && shortText(incoming().createdAt)
+            && shortText(incoming().updatedAt)
+            && incoming().body is map
+            && incoming().body.size() <= 100
+            && incoming().refs is map
+            && incoming().refs.size() <= 20
+            && !('toolId' in incoming().body)
+            && !('entityDefinitionId' in incoming().body)
+            && !('cloudOwnerUid' in incoming().body)
+            && !('id' in incoming().body)
+            && !('statusKey' in incoming().body)
+            && incoming().rev is int
+            && incoming().deleted is bool
+            && (incoming().deletedAt == null || shortText(incoming().deletedAt))
+            && (incoming().restoredAt == null || shortText(incoming().restoredAt))
+            && incoming().lastOpId is string
+            && incoming().lastOpId.size() >= 1
+            && incoming().lastOpId.size() <= 100
+            && incoming().serverUpdatedAt == request.time;
+        }
+        function editing() {
+          return resource.data.deleted == false
+            && incoming().deleted == false
+            && incoming().deletedAt == null
+            && incoming().restoredAt == resource.data.restoredAt;
+        }
+        function deleting() {
+          return resource.data.deleted == false
+            && incoming().deleted == true
+            && shortText(incoming().deletedAt)
+            && incoming().diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'rev', 'lastOpId', 'serverUpdatedAt']);
+        }
+        function restoring() {
+          return resource.data.deleted == true
+            && incoming().deleted == false
+            && incoming().deletedAt == null
+            && shortText(incoming().restoredAt)
+            && incoming().diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'restoredAt', 'rev', 'lastOpId', 'serverUpdatedAt']);
+        }
+
+        allow get, list: if isOwner();
+
+        allow create: if isOwner()
+          && accountLive()
+          && moduleOpen()
+          && validSyncShape()
+          && incoming().rev == 1
+          && incoming().deleted == false
+          && incoming().deletedAt == null
+          && incoming().restoredAt == null;
+
+        // Un fait financier existant n'est JAMAIS modifié : aucune branche ne le permet.
+        allow update: if isOwner()
+          && accountLive()
+          && moduleOpen()
+          && validSyncShape()
+          && !(resource.data.kind in financialKinds())
+          && incoming().kind == resource.data.kind
+          && incoming().ownerUid == resource.data.ownerUid
+          && incoming().createdAt == resource.data.createdAt
+          && incoming().schemaVersion >= resource.data.schemaVersion
+          && incoming().rev == resource.data.rev + 1
+          && (editing() || deleting() || restoring());
+
+        // Aucune suppression physique ordinaire. Exception : l'effacement du module (sous verrou), par le propriétaire.
+        allow delete: if isOwner() && moduleLocked();
+      }
+
+      // ---- La vue du locataire : lecture seule, limitée à lui, limitée dans le temps ----------------------------------------
+      // Projection publiée par le propriétaire : seuls les champs ci-dessous existent, aucun champ privé (notes, raisons, dépenses…).
+      match /tenantViews/{viewUid}/items/{itemId} {
+        // Champs autorisés dans le contenu de chaque type de vue (aucun champ privé : notes libres, raisons de correction ou d'annulation, champs personnalisés, dépenses, etc.).
+        function allowedBody(kind) {
+          return kind == 'contrat' ? ['statut', 'locataireNom', 'locataireTelephone', 'locataireEmail', 'locataireNote', 'proprietaireNom', 'loyerMensuel', 'dateEntree', 'dateSortie', 'jourEcheance', 'dernierLoyerPaye', 'caution', 'avance']
+            : kind == 'logement' ? ['nom', 'type', 'cuisine', 'wc', 'adresse', 'nomBien', 'loyerReference']
+            : kind == 'paiement' ? ['mois', 'montant', 'statut', 'dateValidation', 'modePaiement', 'reference', 'retardsALaDate']
+            : kind == 'avance' ? ['montant', 'consomme', 'disponible', 'moisCouverts']
+            : kind == 'retards' ? ['fiable', 'mois', 'jourEcheance', 'calculeLe']
+            : ['type', 'date', 'mois'];
+        }
+        function validItem() {
+          return request.resource.data.keys().hasOnly(['kind', 'body', 'rev', 'updatedAt'])
+            && request.resource.data.keys().hasAll(['kind', 'body', 'rev', 'updatedAt'])
+            && request.resource.data.kind in ['contrat', 'logement', 'paiement', 'avance', 'retards', 'evenement']
+            && request.resource.data.body is map
+            && request.resource.data.body.size() <= 20
+            && request.resource.data.body.keys().hasOnly(allowedBody(request.resource.data.kind))
+            && request.resource.data.rev is int
+            && shortText(request.resource.data.updatedAt);
+        }
+
+        allow get, list: if isOwner() || activeTenant(viewUid);
+        allow create, update: if isOwner() && accountLive() && moduleOpen() && validItem();
+        allow delete: if isOwner();
+      }
+    }
+    // <<< P5 MODULES END
+
+    // >>> P5 TOMBSTONE BEGIN — marqueur « compte en cours de suppression ou supprimé ». CANDIDAT : NON PUBLIÉ.
+    //  - créé par le compte LUI-MÊME, une seule fois, avec l'heure du serveur ; aucun autre champ ;
+    //  - jamais modifié ni supprimé par un client (un ancien jeton du même compte ne peut donc pas le retirer) ;
+    //  - lisible par son titulaire seulement (reprise d'une suppression interrompue) ; aucune liste ;
+    //  - conservé : il ne contient que l'identifiant technique du compte et la date (voir docs/f7-dossier-publication-p5.md pour la durée de conservation).
+    match /deletedAccounts/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list: if false;
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['deletedAt'])
+        && request.resource.data.deletedAt == request.time;
+      allow update, delete: if false;
+    }
+    // <<< P5 TOMBSTONE END
+
+    // ---- Tout le reste est interdit -----------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

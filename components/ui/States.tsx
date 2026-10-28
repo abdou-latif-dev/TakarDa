@@ -21,14 +21,14 @@ export function EmptyState({ icon, title, description, actionLabel, onAction, co
   return (
     <View className={`items-center justify-center gap-3 rounded-lg border border-border bg-surface px-6 ${compact ? 'py-8' : 'py-14'}`}>
       <View
-        className="items-center justify-center rounded-full bg-background-secondary"
+        className="items-center justify-center rounded-full bg-primary-soft"
         style={{ width: compact ? 64 : 96, height: compact ? 64 : 96 }}>
-        <MaterialIcons name={icon} size={compact ? 28 : 40} color={Colors.emptyIcon} />
+        <MaterialIcons name={icon} size={compact ? 28 : 40} color={Colors.primary} />
       </View>
       <SectionTitleText className="text-center">{title}</SectionTitleText>
       <BodyMdText className="text-center">{description}</BodyMdText>
       {actionLabel && (
-        <SecondaryButton label={actionLabel} onPress={onAction} fullWidth={false} className="mt-1 px-6" />
+        <PrimaryButton label={actionLabel} onPress={onAction} fullWidth={false} className="mt-1 px-6" />
       )}
     </View>
   );
@@ -48,7 +48,7 @@ export function ErrorState({
 }) {
   return (
     <View className="items-center justify-center gap-3 rounded-xl border border-border bg-surface px-8 py-14">
-      <View className="items-center justify-center rounded-full bg-error-container/40" style={{ width: 96, height: 96 }}>
+      <View className="items-center justify-center rounded-full bg-error-container" style={{ width: 96, height: 96 }}>
         <MaterialIcons name="cloud-off" size={40} color={Colors.error} />
       </View>
       <SectionTitleText className="text-center">{title}</SectionTitleText>

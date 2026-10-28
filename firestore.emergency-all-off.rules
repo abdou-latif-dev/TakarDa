@@ -1,0 +1,11 @@
+// RÈGLES D'URGENCE — variante 2 « TOUT REFUSÉ ». GÉNÉRÉ par scripts/firebase-rules/emergency.js (source : firestore.p5.rules, SHA-256 a84dcdea4a292aca7146f30afe8ef0c4506ca351343e9de372d4b508d940f8f6).
+// NE PAS ÉDITER À LA MAIN. NON PUBLIÉ. Plus aucun accès, en lecture comme en écriture. Procédure : docs/f4-production.md.
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

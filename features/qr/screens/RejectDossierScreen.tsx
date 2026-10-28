@@ -39,7 +39,7 @@ export function RejectDossierScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
-      <AppHeader title="FormEase" showBack />
+      <AppHeader title="TakarDa" showBack />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
       <ScrollView contentContainerClassName="gap-6 px-page-margin pb-6" keyboardShouldPersistTaps="handled">
         <View className="items-center gap-2">

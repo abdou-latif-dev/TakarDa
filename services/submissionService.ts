@@ -1,4 +1,5 @@
 import { activityEvents, delay, forms, genId, submissions } from './db';
+import { guardService } from './moduleLock';
 import type { Submission, SubmissionAnswer, SubmissionStatus } from '@/types/entities';
 
 const QR_VALIDITY_HOURS = 24;
@@ -9,7 +10,7 @@ export type ScanOutcome =
   | { kind: 'expired'; submission: Submission }
   | { kind: 'already_processed'; submission: Submission };
 
-export const submissionService = {
+export const submissionService = guardService('formulaires', {
   async listAll(): Promise<Submission[]> {
     await delay();
     return [...submissions].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
@@ -87,7 +88,7 @@ export const submissionService = {
     });
     return submission;
   },
-};
+});
 
 function nanoidLike() {
   return Math.random().toString(36).slice(2, 6).toUpperCase();

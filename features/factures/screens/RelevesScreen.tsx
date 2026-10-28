@@ -138,7 +138,7 @@ export function RelevesScreen() {
       <ScrollView contentContainerClassName="gap-4 px-page-margin pb-10" keyboardShouldPersistTaps="handled">
         <Card className="gap-3">
           <SectionTitleText className="text-base">CEET et TDE ont leur propre écran</SectionTitleText>
-          <LabelText>Les index CEET et TDE s'enregistrent maintenant pour des participants identifiés, depuis l'accueil de chaque module.</LabelText>
+          <LabelText>Les index CEET et TDE s&apos;enregistrent maintenant pour des participants identifiés, depuis l&apos;accueil de chaque module.</LabelText>
           <View className="flex-row gap-3">
             <View className="flex-1"><SecondaryButton label="⚡ CEET" onPress={() => router.push('/ceet' as never)} /></View>
             <View className="flex-1"><SecondaryButton label="💧 TDE" onPress={() => router.push('/tde' as never)} /></View>

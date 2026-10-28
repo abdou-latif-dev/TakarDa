@@ -25,8 +25,11 @@
 // définition du contrat et sur les anciens enregistrements — jamais supprimés —
 // pour la compatibilité et l'idempotence de la migration.
 
+import { isModuleLocked } from './moduleLock';
 import { coreService } from './coreService';
+import { deletionBlockedReason, effectivePaiementsFor, isAnnulledPayment } from './effectivePayments';
 import { ensureFacturesTool } from './facturesService';
+import { recordBienCreated, recordBienDeleted, recordContratCreated, recordContratEnded, recordLoyerPaid, recordLogementCreated } from './immobilierActivity';
 import type {
   EntityDefinition,
   ExternalContact,
@@ -155,6 +158,12 @@ export function ensureImmobilierTool(): Promise<ImmobilierEntities> {
     });
   }
   return ensurePromise;
+}
+
+/** Oublie le Tool mis en cache : à appeler quand la base en mémoire est remplacée (changement d'espace de travail), sinon les
+ * identifiants mis en cache ne correspondraient plus aux collections chargées. Ne touche à aucune donnée. */
+export function resetImmobilierToolCache(): void {
+  ensurePromise = null;
 }
 
 const missing = (def: EntityDefinition, key: string) => !def.fields.some((f) => f.key === key);
@@ -403,11 +412,12 @@ const monthIndex = (mois: string): number => {
 };
 const monthFromIndex = (index: number): string => `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
 
-/** Mois (AAAA-MM) couverts par un vrai paiement `paye` du contrat. */
+/** Mois (AAAA-MM) réglés pour le contrat : un vrai paiement `paye`, OU un mois `couvert` par l'avance (statut
+ * distinct, voir rentAdvanceService : ce n'est pas un paiement, mais le mois n'est plus dû ni en retard). */
 function paidMonthsOf(contrat: RecordItem, paiements: RecordItem[]): Set<string> {
   return new Set(
     paiements
-      .filter((p) => p.values.contrat === contrat.id && p.statusKey === 'paye' && typeof p.values.mois === 'string' && MOIS_FORMAT.test(p.values.mois))
+      .filter((p) => p.values.contrat === contrat.id && (p.statusKey === 'paye' || p.statusKey === 'couvert') && typeof p.values.mois === 'string' && MOIS_FORMAT.test(p.values.mois))
       .map((p) => p.values.mois as string),
   );
 }
@@ -422,6 +432,15 @@ function firstDueIndex(contrat: RecordItem): number | null {
   const declaredIndex = typeof declared === 'string' && MOIS_FORMAT.test(declared) ? monthIndex(declared) + 1 : -Infinity;
   const index = Math.max(entreeIndex, declaredIndex);
   return Number.isFinite(index) ? index : null;
+}
+
+/** Lecture seule pour rentAdvanceService : premier mois dû (AAAA-MM) et mois déjà réglés (payés ou couverts). */
+export function firstDueMonth(contrat: RecordItem): string | null {
+  const index = firstDueIndex(contrat);
+  return index === null ? null : monthFromIndex(index);
+}
+export function settledMonthsOf(contrat: RecordItem, paiements: RecordItem[]): Set<string> {
+  return paidMonthsOf(contrat, paiements);
 }
 
 /** Mois calendaire en cours (index). Règle unique : un mois est « En retard »
@@ -480,7 +499,7 @@ export function computeNextDueMonth(contrat: RecordItem, paiements: RecordItem[]
 
 export interface PaiementTimelineRow {
   mois: string;
-  status: 'paye' | 'a_payer' | 'en_retard';
+  status: 'paye' | 'couvert' | 'a_payer' | 'en_retard' | 'annule';
   /** Montant du paiement enregistré (figé) ; pour un mois non payé : loyer actuel du contrat. */
   montant: number | null;
   /** Le vrai paiement enregistré ; null pour un mois non payé. */
@@ -495,6 +514,16 @@ export function buildPaiementTimeline(contrat: RecordItem, paiements: RecordItem
   const loyer = asNumber(contrat.values.loyer_mensuel);
   const real = paiements.filter((p) => p.values.contrat === contrat.id && p.statusKey === 'paye' && typeof p.values.mois === 'string');
   const rows: PaiementTimelineRow[] = real.map((p) => ({ mois: p.values.mois as string, status: 'paye', montant: asNumber(p.values.montant), paiement: p }));
+  // Paiements ANNULÉS par une annulation explicite : une ligne « Annulé » (le mois, lui, redevient « À payer » ou « En retard » ci-dessous).
+  for (const p of paiements) {
+    if (p.values.contrat === contrat.id && isAnnulledPayment(p) && typeof p.values.mois === 'string') rows.push({ mois: p.values.mois, status: 'annule', montant: asNumber(p.values.montant), paiement: p });
+  }
+  // Mois couverts par l'avance : une ligne distincte « Couvert par l'avance » (jamais « Payé », aucun reçu).
+  for (const c of paiements) {
+    if (c.values.contrat === contrat.id && c.statusKey === 'couvert' && typeof c.values.mois === 'string') {
+      rows.push({ mois: c.values.mois, status: 'couvert', montant: asNumber(c.values.montant), paiement: c });
+    }
+  }
 
   if (contrat.statusKey === 'actif') {
     const start = firstDueIndex(contrat);
@@ -531,10 +560,10 @@ export async function enregistrerPaiementLoyer(contratId: string, now: Date = ne
     if (contrat.statusKey !== 'actif') throw new Error('Ce contrat est terminé : aucun paiement ne peut être enregistré.');
     const loyer = asNumber(contrat.values.loyer_mensuel);
     if (!loyer || loyer <= 0) throw new Error('Le loyer mensuel du contrat est manquant.');
-    const paiements = await coreService.getRecords({ toolId: ents.tool.id, entityDefinitionId: ents.paiement.id });
+    const paiements = await effectivePaiementsFor(await coreService.getRecords({ toolId: ents.tool.id, entityDefinitionId: ents.paiement.id }));
     const mois = computeNextDueMonth(contrat, paiements);
     if (!mois) throw new Error('Aucun mois à payer pour ce contrat.');
-    return await coreService.createRecord({
+    const paiement = await coreService.createRecord({
       toolId: ents.tool.id,
       entityDefinitionId: ents.paiement.id,
       statusKey: 'paye',
@@ -548,6 +577,8 @@ export async function enregistrerPaiementLoyer(contratId: string, now: Date = ne
         date_validation: toIsoDay(now),
       },
     });
+    await recordLoyerPaid(paiement, contrat); // activité : seulement après la réussite
+    return paiement;
   } finally {
     paiementsEnCours.delete(contratId);
   }
@@ -651,7 +682,7 @@ export async function loadBienOverview(bienId: string): Promise<BienOverview> {
     coreService.getRecords({ toolId, entityDefinitionId: ents.logement.id }),
     coreService.getRecords({ toolId, entityDefinitionId: ents.contrat.id }),
     coreService.getExternalContacts(),
-    coreService.getRecords({ toolId, entityDefinitionId: ents.paiement.id }),
+    coreService.getRecords({ toolId, entityDefinitionId: ents.paiement.id }).then(effectivePaiementsFor),
     coreService.getRecords({ toolId, entityDefinitionId: ents.depense.id }),
   ]);
   const ownLogements = logements.filter((l) => l.values.bien === bienId);
@@ -685,7 +716,7 @@ export async function loadLogementDetail(logementId: string): Promise<LogementDe
     coreService.getRecord(String(logement.values.bien)),
     coreService.getRecords({ toolId, entityDefinitionId: ents.contrat.id }),
     coreService.getExternalContacts(),
-    coreService.getRecords({ toolId, entityDefinitionId: ents.paiement.id }),
+    coreService.getRecords({ toolId, entityDefinitionId: ents.paiement.id }).then(effectivePaiementsFor),
   ]);
   const own = contrats.filter((c) => c.values.logement === logementId);
   const [view] = buildLogementViews([logement], own, contacts, paiements);
@@ -719,7 +750,7 @@ export async function loadContratDetail(contratId: string): Promise<ContratDetai
   const logementId = typeof contrat.values.logement === 'string' ? contrat.values.logement : '';
   const locataireId = typeof contrat.values.locataire_id === 'string' ? contrat.values.locataire_id : '';
   const [allPaiements, logement, bien, locataire] = await Promise.all([
-    coreService.getRecords({ toolId: ents.tool.id, entityDefinitionId: ents.paiement.id }),
+    coreService.getRecords({ toolId: ents.tool.id, entityDefinitionId: ents.paiement.id }).then(effectivePaiementsFor),
     logementId ? coreService.getRecord(logementId) : Promise.resolve(null),
     coreService.getRecord(String(contrat.values.bien ?? '')),
     locataireId ? coreService.getExternalContact(locataireId) : Promise.resolve(null),
@@ -741,11 +772,13 @@ export async function loadContratDetail(contratId: string): Promise<ContratDetai
 export async function createBien(input: { nom: string; adresse: string; type?: string }): Promise<RecordItem> {
   const ents = await ensureImmobilierTool();
   if (!input.nom.trim()) throw new Error('Le nom du bien est obligatoire.');
-  return coreService.createRecord({
+  const bien = await coreService.createRecord({
     toolId: ents.tool.id,
     entityDefinitionId: ents.bien.id,
     values: { nom: input.nom.trim(), adresse: input.adresse.trim(), type: input.type ?? null },
   });
+  await recordBienCreated(bien);
+  return bien;
 }
 
 async function assertLogementNameFree(bienId: string, nom: string, exceptId?: string): Promise<void> {
@@ -764,13 +797,15 @@ export interface LogementInput {
   loyerReference?: number | null;
 }
 
-export async function createLogement(input: LogementInput & { bienId: string }): Promise<RecordItem> {
+/** `silent` : l'appelant enregistre lui-même l'activité une fois SON action entière réussie
+ * (création d'un contrat avec nouveau logement : un échec ultérieur annule le logement). */
+export async function createLogement(input: LogementInput & { bienId: string }, opts: { silent?: boolean } = {}): Promise<RecordItem> {
   const ents = await ensureImmobilierTool();
   if (!input.nom.trim()) throw new Error('Le nom du logement est obligatoire.');
   const bien = await coreService.getRecord(input.bienId);
   if (!bien) throw new Error('Bien introuvable.');
   await assertLogementNameFree(input.bienId, input.nom);
-  return coreService.createRecord({
+  const logement = await coreService.createRecord({
     toolId: ents.tool.id,
     entityDefinitionId: ents.logement.id,
     values: {
@@ -782,6 +817,8 @@ export async function createLogement(input: LogementInput & { bienId: string }):
       loyer_reference: input.loyerReference ?? null,
     },
   });
+  if (!opts.silent) await recordLogementCreated(logement);
+  return logement;
 }
 
 /** Le bien d'un logement ne change jamais ici : c'est la relation canonique. */
@@ -903,7 +940,7 @@ export async function createLocataireEtContrat(input: CreateLocataireContratInpu
         cuisine: createNew.cuisine,
         wc: createNew.wc,
         loyerReference: input.loyerMensuel,
-      });
+      }, { silent: true });
       logement = createdLogement;
     }
     contact = await coreService.createExternalContact({ name: input.nom.trim(), phone: input.telephone.trim() });
@@ -924,6 +961,13 @@ export async function createLocataireEtContrat(input: CreateLocataireContratInpu
         dernier_loyer_paye: dernierLoyerPaye,
       },
     });
+    // Activités : seulement maintenant que le contrat (et le logement éventuel) existent vraiment.
+    if (createdLogement) await recordLogementCreated(createdLogement);
+    await recordContratCreated(contrat, {
+      locataire: contact.name,
+      logement: String(logement!.values.nom ?? 'Logement'),
+      bien: String(bien.values.nom ?? 'Bien'),
+    });
     return { contrat, contact, logement: logement! };
   } catch (error) {
     await Promise.allSettled([
@@ -940,7 +984,9 @@ export async function terminerContrat(contratId: string, dateSortie: Date = new 
   const contrat = await coreService.getRecord(contratId);
   if (!contrat) throw new Error('Contrat introuvable.');
   if (contrat.statusKey !== 'actif') throw new Error("Ce contrat n'est pas actif.");
-  return coreService.updateRecord(contratId, { statusKey: 'termine', values: { date_sortie: toIsoDay(dateSortie) } });
+  const ended = await coreService.updateRecord(contratId, { statusKey: 'termine', values: { date_sortie: toIsoDay(dateSortie) } });
+  await recordContratEnded(ended);
+  return ended;
 }
 
 export async function updateLocataire(contactId: string, input: { name: string; phone?: string }): Promise<ExternalContact> {
@@ -1012,6 +1058,8 @@ export interface BienDeletionImpact {
  * référencent ce bien. Immobilier ne les affiche pas ; on ne les connaît que
  * pour ne pas laisser de facture pointant vers un bien supprimé. */
 async function loadFacturesDuBien(bienId: string) {
+  // Module CEET/TDE verrouillé (contexte multi-compte) : ses factures sont introuvables, rien n'est créé ni supprimé — elles restent intactes.
+  if (isModuleLocked('utility')) return { ownFactures: [] as RecordItem[], releves: [] as RecordItem[], parts: [] as RecordItem[] };
   const factures = await ensureFacturesTool();
   const [facturesPartagees, releves, parts] = await Promise.all([
     coreService.getRecords({ toolId: factures.tool.id, entityDefinitionId: factures.facturePartageeDefinition.id }),
@@ -1056,6 +1104,7 @@ export async function getBienDeletionImpact(bienId: string): Promise<BienDeletio
 export async function deleteBienCascade(bienId: string): Promise<void> {
   const ents = await ensureImmobilierTool();
   const toolId = ents.tool.id;
+  const bienNom = String((await coreService.getRecord(bienId))?.values.nom ?? 'Bien'); // pour l'activité, lu avant la suppression
   const [logements, contrats, depenses, { ownFactures, releves, parts }] = await Promise.all([
     coreService.getRecords({ toolId, entityDefinitionId: ents.logement.id }),
     coreService.getRecords({ toolId, entityDefinitionId: ents.contrat.id }),
@@ -1066,6 +1115,8 @@ export async function deleteBienCascade(bienId: string): Promise<void> {
   const contratIds = new Set(ownContrats.map((c) => c.id));
   const factureIds = new Set(ownFactures.map((f) => f.id));
   const graph = await collectContratGraph(contratIds);
+  const blocked = await deletionBlockedReason(graph.paiements);
+  if (blocked) throw new Error(blocked);
 
   await Promise.all([
     ...releves.filter((r) => r.values.participant_type === 'contrat' && contratIds.has(String(r.values.participant_id))).map((r) => coreService.deleteRecord(r.id)),
@@ -1076,11 +1127,14 @@ export async function deleteBienCascade(bienId: string): Promise<void> {
     deleteContratGraph(graph),
   ]);
   await coreService.deleteRecord(bienId);
+  await recordBienDeleted(bienId, bienNom);
 }
 
 /** Supprime un contrat, ses paiements et — s'il n'est plus référencé — son locataire. */
 export async function deleteContratCascade(contratId: string): Promise<void> {
   const graph = await collectContratGraph(new Set([contratId]));
+  const blocked = await deletionBlockedReason(graph.paiements);
+  if (blocked) throw new Error(blocked);
   await deleteContratGraph(graph);
 }
 

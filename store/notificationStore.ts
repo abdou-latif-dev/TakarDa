@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { notificationService } from '@/services/notificationService';
+import { getAccountEpoch } from '@/services/cloudVisibility';
 import type { AsyncStatus } from './asyncStatus';
 import type { AppNotification } from '@/types/entities';
 
@@ -19,11 +20,13 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   fetch: async () => {
     set({ status: 'loading' });
+    const epoch = getAccountEpoch();
     try {
       const notifications = await notificationService.list();
+      if (epoch !== getAccountEpoch()) return; // résultat d'un ancien compte
       set({ notifications, status: 'success', unreadCount: notifications.filter((n) => !n.read).length });
     } catch {
-      set({ status: 'error' });
+      if (epoch === getAccountEpoch()) set({ status: 'error' });
     }
   },
 

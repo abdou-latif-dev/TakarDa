@@ -14,45 +14,54 @@
  * instance (Factures' StatusDefinition) that used to and was fixed.
  */
 
+// Palette TakarDa (maquettes Stitch « iPhone redesign » + design system 9B) : violet profond #1F03A8 réservé aux
+// actions, à l'état actif et aux liens ; canvas slate très clair avec des cartes blanches à bordure fine ; encre navy.
+// Mode sombre : fond noir, cartes #1C1C1E à bordure discrète, accent indigo clair. Les couleurs sont ici, à UN seul
+// endroit : classes Tailwind (variables --td-*) et composants natifs (Colors) en héritent.
 export const LIGHT_COLORS = {
-  primary: '#171717',
-  primaryDark: '#000000',
-  primaryLight: '#595959',
-  primarySoft: '#F0F0F0',
+  primary: '#1F03A8',
+  primaryDark: '#170282', // état actif / pressé
+  primaryLight: '#504AD3',
+  primarySoft: '#EEF0FF', // fond teinté des pastilles d'icône et des sélections
+  onPrimary: '#FFFFFF',
 
-  background: '#FFFFFF',
-  backgroundSecondary: '#F7F7F8',
+  background: '#F8FAFC',
+  backgroundSecondary: '#F1F5F9',
   surface: '#FFFFFF',
-  surfaceContainer: '#EEEEEE',
-  surfaceContainerHigh: '#E0E0E0',
-  border: '#E5E5E5',
+  surfaceContainer: '#F1F5F9',
+  surfaceContainerHigh: '#E2E8F0',
+  border: '#E2E8F0',
 
-  textPrimary: '#171717',
-  textSecondary: '#666666',
-  textMuted: '#9A9A9A',
+  textPrimary: '#0F172A',
+  textSecondary: '#475569',
+  textMuted: '#64748B',
   textOnPrimary: '#FFFFFF',
 
-  success: '#2E7D32',
-  successContainer: '#E6F4EA',
-  error: '#BA1A1A',
-  errorContainer: '#FFDAD6',
+  success: '#047857',
+  successContainer: '#ECFDF5',
+  error: '#DC2626',
+  errorContainer: '#FEF2F2',
+  errorOnContainer: '#B91C1C', // texte rouge posé SUR errorContainer (#DC2626 n'y atteint que 4,4:1)
   warning: '#B45309',
-  warningContainer: '#FEF3C7',
-  info: '#006399',
-  infoContainer: '#CDE5FF',
+  warningContainer: '#FFFBEB',
+  info: '#504AD3',
+  infoContainer: '#E0E7FF',
 
-  skeleton: '#EEEEEF',
-  emptyIcon: '#DADADB',
+  skeleton: '#E2E8F0',
+  emptyIcon: '#CBD5E1',
 };
 
+/** Texte rouge posé SUR le fond teinté errorContainer (thème clair) : conservé pour compatibilité. */
+export const ERROR_TEXT_ON_CONTAINER = LIGHT_COLORS.errorOnContainer;
+
 export const DARK_COLORS = {
-  primary: '#59595F', primaryDark: '#FFFFFF', primaryLight: '#85858D', primarySoft: '#2C2C2E',
-  background: '#111113', backgroundSecondary: '#1C1C1E', surface: '#1C1C1E',
-  surfaceContainer: '#2C2C2E', surfaceContainerHigh: '#3A3A3C', border: '#38383A',
-  textPrimary: '#F5F5F7', textSecondary: '#B0B0B5', textMuted: '#8E8E93', textOnPrimary: '#111113',
-  success: '#30D158', successContainer: '#17351F', error: '#FF453A', errorContainer: '#451D1B',
-  warning: '#FF9F0A', warningContainer: '#3E2D12', info: '#64D2FF', infoContainer: '#123143',
-  skeleton: '#2C2C2E', emptyIcon: '#636366',
+  primary: '#818CF8', primaryDark: '#A5B4FC', primaryLight: '#6366F1', primarySoft: '#26264F', onPrimary: '#0B0B1F',
+  background: '#000000', backgroundSecondary: '#0A0A0C', surface: '#1C1C1E',
+  surfaceContainer: '#2C2C2E', surfaceContainerHigh: '#3A3A3C', border: '#2C2C2E',
+  textPrimary: '#FFFFFF', textSecondary: '#A1A1AA', textMuted: '#8E8E99', textOnPrimary: '#0B0B1F',
+  success: '#34D399', successContainer: '#0B2E22', error: '#F87171', errorContainer: '#3B1416', errorOnContainer: '#FCA5A5',
+  warning: '#FBBF24', warningContainer: '#33260A', info: '#818CF8', infoContainer: '#26264F',
+  skeleton: '#2C2C2E', emptyIcon: '#71717A',
 };
 
 /** Mutable runtime palette for components that need native style colors (icons,
@@ -86,7 +95,7 @@ const toRgb = (hex: string) => {
 export function getThemeVariables(scheme: ColorScheme): Record<`--${string}`, string> {
   const p = scheme === 'dark' ? DARK_COLORS : LIGHT_COLORS;
   return {
-    '--td-primary': toRgb(p.primary), '--td-primary-dark': toRgb(p.primaryDark), '--td-primary-light': toRgb(p.primaryLight), '--td-primary-soft': toRgb(p.primarySoft),
+    '--td-primary': toRgb(p.primary), '--td-primary-dark': toRgb(p.primaryDark), '--td-primary-light': toRgb(p.primaryLight), '--td-primary-soft': toRgb(p.primarySoft), '--td-on-primary': toRgb(p.onPrimary),
     '--td-background': toRgb(p.background), '--td-background-secondary': toRgb(p.backgroundSecondary), '--td-surface': toRgb(p.surface),
     '--td-surface-container': toRgb(p.surfaceContainer), '--td-surface-container-high': toRgb(p.surfaceContainerHigh), '--td-border': toRgb(p.border),
     '--td-text-primary': toRgb(p.textPrimary), '--td-text-secondary': toRgb(p.textSecondary), '--td-text-muted': toRgb(p.textMuted),
@@ -176,8 +185,8 @@ export const Radius = {
   sm: 4,
   DEFAULT: 8,
   md: 12,
-  lg: 16,
-  xl: 20,
+  lg: 22,
+  xl: 24,
   full: 9999,
 } as const;
 
@@ -225,22 +234,23 @@ export type StatusKind = 'paid' | 'pending' | 'late' | 'active' | 'inactive' | '
 // them in here as the single source — StatusBadge no longer keeps its own copy.
 const STATUS_PALETTE: Record<'light' | 'dark', Record<StatusKind, { bg: string; text: string }>> = {
   light: {
-    paid: { bg: LIGHT_COLORS.successContainer, text: '#137333' },
-    pending: { bg: LIGHT_COLORS.surfaceContainer, text: LIGHT_COLORS.textSecondary },
-    late: { bg: LIGHT_COLORS.errorContainer, text: '#93000A' },
+    // Payé / en attente / en retard : vert, ambre, rouge (design system), texte lisible sur le fond teinté.
+    paid: { bg: LIGHT_COLORS.successContainer, text: '#047857' },
+    pending: { bg: LIGHT_COLORS.warningContainer, text: '#B45309' },
+    late: { bg: LIGHT_COLORS.errorContainer, text: LIGHT_COLORS.errorOnContainer },
     active: { bg: LIGHT_COLORS.primary, text: LIGHT_COLORS.textOnPrimary },
     inactive: { bg: LIGHT_COLORS.surfaceContainer, text: LIGHT_COLORS.textSecondary },
-    validated: { bg: LIGHT_COLORS.successContainer, text: '#137333' },
-    rejected: { bg: LIGHT_COLORS.errorContainer, text: '#93000A' },
+    validated: { bg: LIGHT_COLORS.successContainer, text: '#047857' },
+    rejected: { bg: LIGHT_COLORS.errorContainer, text: LIGHT_COLORS.errorOnContainer },
   },
   dark: {
-    paid: { bg: DARK_COLORS.successContainer, text: '#8BE3A2' },
-    pending: { bg: '#38383A', text: '#D1D1D6' },
-    late: { bg: DARK_COLORS.errorContainer, text: '#FF8A80' },
+    paid: { bg: DARK_COLORS.successContainer, text: '#6EE7B7' },
+    pending: { bg: DARK_COLORS.warningContainer, text: '#FCD34D' },
+    late: { bg: DARK_COLORS.errorContainer, text: DARK_COLORS.errorOnContainer },
     active: { bg: DARK_COLORS.primary, text: DARK_COLORS.textOnPrimary },
-    inactive: { bg: '#38383A', text: '#D1D1D6' },
-    validated: { bg: DARK_COLORS.successContainer, text: '#8BE3A2' },
-    rejected: { bg: DARK_COLORS.errorContainer, text: '#FF8A80' },
+    inactive: { bg: DARK_COLORS.surfaceContainer, text: DARK_COLORS.textSecondary },
+    validated: { bg: DARK_COLORS.successContainer, text: '#6EE7B7' },
+    rejected: { bg: DARK_COLORS.errorContainer, text: DARK_COLORS.errorOnContainer },
   },
 };
 

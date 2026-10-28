@@ -5,14 +5,12 @@ import { BottomSheetCard } from '@/components/ui/BottomSheetCard';
 import { SectionTitleText, BodyMdText } from '@/components/ui/Typography';
 import { Colors } from '@/constants/theme';
 
-/** Scope locked to the 4 demo-priority domains — see Étape 4D. Old templates
- * (Formulaire générique, Activité, ...) still exist and are still routable,
- * they're just no longer offered from this entry point. */
+/** Ancien menu « + » (plus accessible depuis la navigation : le « + » est maintenant dans Mes Outils et ouvre
+ * le catalogue). Conservé ; ses entrées ouvrent l'ESPACE du module — jamais directement un formulaire de
+ * création — et seuls les modèles du catalogue V1 y figurent. */
 const OPTIONS = [
-  { icon: 'home-work' as const, title: 'Bien immobilier', description: 'Ajouter un bien à gérer', href: '/immobilier/new' as const },
-  { icon: 'receipt-long' as const, title: 'Facture', description: 'CEET, TDE ou autre facture', href: '/factures/new' as const },
-  { icon: 'savings' as const, title: 'Tontine', description: 'Gérer des cotisations', href: '/tontine/create' as const },
-  { icon: 'storefront' as const, title: 'Commerce / Business', description: 'Partir d’un modèle de suivi', href: '/form/templates?category=commerce' as const },
+  { icon: 'home-work' as const, title: 'Immobilier', description: 'Ouvrir votre espace Immobilier', href: '/immobilier' as const },
+  { icon: 'savings' as const, title: 'Tontine', description: 'Ouvrir votre espace Tontine', href: '/tontine' as const },
 ];
 
 export function CreateMenuModal() {

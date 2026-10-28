@@ -1,7 +1,8 @@
 import { activityEvents, CURRENT_USER_ID, delay, formTemplates, genId, forms } from './db';
+import { guardService } from './moduleLock';
 import type { FormDefinition, FormTemplate } from '@/types/entities';
 
-export const formTemplateService = {
+export const formTemplateService = guardService('formulaires', {
   async listTemplates(): Promise<FormTemplate[]> {
     await delay(300);
     return formTemplates;
@@ -40,4 +41,4 @@ export const formTemplateService = {
     });
     return form;
   },
-};
+});

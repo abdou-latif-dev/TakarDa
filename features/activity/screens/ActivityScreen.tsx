@@ -1,59 +1,68 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { Chip } from '@/components/ui/Chip';
 import { ActivityItem } from '@/components/ui/ActivityItem';
+import { LabelText } from '@/components/ui/Typography';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { useActivityStore } from '@/store/activityStore';
-import { useGroupStore } from '@/store/groupStore';
+import { activityModule, groupActivitiesByDay, selectRecentActivities } from '@/services/activityService';
+import type { ActivityModule } from '@/types/entities';
 
-const FILTERS = ['Tout', 'Groupes', 'Tontines', 'Formulaires'] as const;
+const MODULES: { key: ActivityModule; label: string }[] = [
+  { key: 'tontine', label: 'Tontines' },
+  { key: 'immobilier', label: 'Immobilier' },
+  { key: 'ceet', label: 'CEET' },
+  { key: 'tde', label: 'TDE' },
+  { key: 'formulaires', label: 'Formulaires' },
+];
 
+/** Journal des actions métier, du plus récent au plus ancien, par jour. Les filtres
+ * proposés sont ceux des modules qui ont réellement des activités. */
 export function ActivityScreen() {
   const { events, status, fetch } = useActivityStore();
-  const { groups, fetchGroups } = useGroupStore();
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]>('Tout');
+  const [filter, setFilter] = useState<'all' | ActivityModule>('all');
 
-  useEffect(() => {
-    fetch();
-    fetchGroups();
-  }, [fetch, fetchGroups]);
+  // Recharge à chaque retour sur l'écran : une activité enregistrée ailleurs doit apparaître.
+  useFocusEffect(useCallback(() => { fetch(); }, [fetch]));
 
-  const tontineGroupIds = useMemo(() => new Set(groups.filter((g) => g.kind === 'tontine').map((g) => g.id)), [groups]);
-
-  const filtered = events.filter((e) => {
-    if (filter === 'Tout') return true;
-    if (filter === 'Tontines') return e.groupId ? tontineGroupIds.has(e.groupId) : e.type === 'contribution_added';
-    if (filter === 'Groupes') return e.type === 'member_joined' || e.type === 'member_invited' || e.type === 'group_created';
-    if (filter === 'Formulaires') return e.type === 'form_submitted' || e.type === 'qr_scanned' || e.type.startsWith('submission');
-    return true;
-  });
+  const present = useMemo(() => MODULES.filter((m) => events.some((e) => activityModule(e) === m.key)), [events]);
+  const active = filter === 'all' || present.some((m) => m.key === filter) ? filter : 'all';
+  const groups = useMemo(
+    () => groupActivitiesByDay(selectRecentActivities(events, active === 'all' ? {} : { module: active })),
+    [events, active],
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <AppHeader title="Activité" />
-      <View className="px-page-margin">
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 pb-3">
-          {FILTERS.map((f) => (
-            <Chip key={f} label={f} active={filter === f} onPress={() => setFilter(f)} />
-          ))}
-        </ScrollView>
-      </View>
+      <AppHeader title="Activités" />
+      {present.length > 0 && (
+        <View className="px-page-margin">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 pb-3">
+            <Chip label="Tout" active={active === 'all'} onPress={() => setFilter('all')} />
+            {present.map((m) => (
+              <Chip key={m.key} label={m.label} active={active === m.key} onPress={() => setFilter(m.key)} />
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       <ScrollView contentContainerClassName="gap-4 px-page-margin pb-10" showsVerticalScrollIndicator={false}>
-        {status === 'loading' && <LoadingState />}
-        {status === 'error' && <ErrorState onRetry={fetch} />}
-        {status === 'success' && filtered.length === 0 && (
+        {status === 'loading' && events.length === 0 && <LoadingState />}
+        {status === 'error' && <ErrorState onRetry={() => fetch()} />}
+        {status === 'success' && groups.length === 0 && (
           <EmptyState icon="analytics" title="Pas encore d'activité" description="Vos actions apparaîtront ici." />
         )}
-        {status === 'success' && filtered.length > 0 && (
-          <View className="rounded-lg border border-border bg-surface p-gutter-card shadow-soft">
-            {filtered.map((event, i) => (
-              <ActivityItem key={event.id} event={event} isLast={i === filtered.length - 1} />
+        {groups.map((group) => (
+          <View key={group.label} className="gap-2.5">
+            <LabelText className="px-1 pt-1 font-inter-semibold uppercase tracking-wide">{group.label}</LabelText>
+            {group.events.map((event) => (
+              <ActivityItem key={event.id} event={event} variant="card" />
             ))}
           </View>
-        )}
+        ))}
       </ScrollView>
     </SafeAreaView>
   );

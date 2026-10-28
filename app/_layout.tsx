@@ -13,7 +13,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { View } from 'react-native';
 import { vars, useColorScheme } from 'nativewind';
+import * as SystemUI from 'expo-system-ui';
 import {
   useFonts,
   Manrope_400Regular,
@@ -25,6 +27,14 @@ import {
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
+import { useCloudStore } from '@/store/cloudStore';
+import { ModuleLockGuard } from '@/components/account/ModuleLockGuard';
+import { refreshSyncLifecycle, startSyncLifecycle } from '@/services/syncLifecycle';
+import { useDemoStore } from '@/store/demoStore';
+import { CLOUD_ACCOUNT_ENABLED } from '@/constants/features';
+import { AccountRequiredDialog } from '@/components/account/AccountRequiredDialog';
+import { DemoBanner } from '@/components/demo/DemoBanner';
+import { resetAccountCaches } from '@/store/accountCaches';
 import { getThemeVariables, setColorsForScheme, LIGHT_COLORS, DARK_COLORS } from '@/constants/theme';
 import { hydrateDb, startAutoPersist } from '@/services/persistence';
 
@@ -44,20 +54,10 @@ const DB_HYDRATE_TIMEOUT_MS = 6000;
 
 export default function RootLayout() {
   const mode = useThemeStore((s) => s.mode);
-  const { setColorScheme } = useColorScheme();
-  // Étape 4B — le sélecteur Clair/Sombre/Système est temporairement désactivé
-  // pendant la refonte du design (retour à un seul thème clair, voir le
-  // rapport de l'Étape 4B). Rien n'est supprimé : `mode` reste lu et persisté
-  // normalement (store/themeStore.ts), setColorScheme(mode) continue de
-  // tourner sans effet visible tant qu'`activeScheme` reste figé ici. Pour
-  // réactiver plus tard : remplacer la ligne ci-dessous par
-  // `mode === 'system' ? (useColorScheme().colorScheme ?? 'light') : mode`
-  // et remettre l'entrée "Apparence" dans ProfileScreen.tsx.
-  // `(true as boolean) ? 'light' : 'dark'` (not a bare `'light'` literal) so
-  // TypeScript keeps treating `activeScheme` as the full 'light' | 'dark'
-  // union below — a bare literal here would narrow every later
-  // `activeScheme === 'dark'` comparison to "always false" and fail the build.
-  const activeScheme: 'light' | 'dark' = (true as boolean) ? 'light' : 'dark';
+  const { colorScheme, setColorScheme } = useColorScheme();
+  // Thème : « Clair », « Sombre » ou « Système » (réglage Profil › Apparence, conservé sur l'appareil). Calculé
+  // dans le rendu (pas dans un effet) pour que `Colors` et les variables --td-* soient justes dès ce rendu.
+  const activeScheme: 'light' | 'dark' = mode === 'system' ? (colorScheme === 'dark' ? 'dark' : 'light') : mode;
   const [fontsLoaded, fontError] = useFonts({
     Manrope_400Regular,
     Manrope_500Medium,
@@ -100,6 +100,39 @@ export default function RootLayout() {
 
   useEffect(() => startAutoPersist(), []);
 
+  // Espace de démonstration : relit l'espace réellement actif une fois la base locale chargée (voir services/persistence.ts).
+  useEffect(() => {
+    if (dbHydrated) useDemoStore.getState().sync();
+  }, [dbHydrated]);
+
+  // Compte cloud facultatif : restaure la session Firebase si elle existe. Ne synchronise ni ne migre rien.
+  // Fermé tant que les règles et fonctions cloud ne sont pas validées (constants/features.ts) : Firebase n'est alors pas initialisé.
+  useEffect(() => {
+    if (dbHydrated && CLOUD_ACCOUNT_ENABLED) useCloudStore.getState().init();
+  }, [dbHydrated]);
+
+  // Nouveau moteur de synchronisation (phase 7) : pilotage du runtime selon l'authentification. Entièrement derrière le drapeau fermé : sans lui,
+  // rien n'est démarré, abonné ni chargé. Le runtime est arrêté à la déconnexion, au changement de compte, pendant une suppression et au démontage.
+  useEffect(() => {
+    if (!dbHydrated || !CLOUD_ACCOUNT_ENABLED) return undefined;
+    const stop = startSyncLifecycle(useCloudStore);
+    // changement d'espace (démonstration ↔ personnel) : le runtime est réévalué
+    const unsubscribeDemo = useDemoStore.subscribe(() => void refreshSyncLifecycle());
+    return () => {
+      unsubscribeDemo();
+      stop();
+    };
+  }, [dbHydrated]);
+
+  // Changement de compte : les listes gardées en mémoire sont vidées (les données persistées ne sont pas touchées).
+  useEffect(
+    () =>
+      useCloudStore.subscribe((s, prev) => {
+        if (s.accountEpoch !== prev.accountEpoch) resetAccountCaches();
+      }),
+    [],
+  );
+
   // Theme preference: the system appearance is the initial default, so this
   // never needs to gate `ready` the way
   // dbHydrated does — it only overwrites the defaults once AsyncStorage
@@ -126,6 +159,11 @@ export default function RootLayout() {
   // app, since this is the root) reads it — same render pass, no lag.
   setColorsForScheme(activeScheme);
 
+  // Android : fond de la fenêtre native (zone derrière la barre de navigation, clavier, transitions) = fond du thème.
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(activeScheme === 'dark' ? DARK_COLORS.background : LIGHT_COLORS.background).catch(() => {});
+  }, [activeScheme]);
+
   useEffect(() => {
     if (fontError) console.warn('Font loading failed, continuing with system fonts:', fontError);
   }, [fontError]);
@@ -151,20 +189,29 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
-    <GestureHandlerRootView style={[{ flex: 1 }, vars(getThemeVariables(activeScheme))]}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* Les variables de thème (--td-*) doivent être posées sur un composant React Native de base : NativeWind
+          ignore `vars()` sur un composant tiers comme GestureHandlerRootView. Sur le web le style est transmis
+          tel quel au DOM, ce qui masquait le problème ; sur Android toutes les classes bg-surface, border-border,
+          text-text-* restaient sans couleur. */}
+      <View style={[{ flex: 1 }, vars(getThemeVariables(activeScheme))]}>
       {/* initialWindowMetrics: react-native-safe-area-context's own documented fix for
           insets reading as {top:0,...} for a brief moment after a screen mounts, before
           the native onInsetsChange event arrives — most noticeable on freshly-pushed/
           modal screens on Android, exactly the "content sits too close to the top" symptom
           reported after real-device testing (Étape 4D follow-up). */}
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: activeScheme === 'dark' ? DARK_COLORS.background : LIGHT_COLORS.background } }}>
+        <DemoBanner />
+        <Stack key={activeScheme} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: activeScheme === 'dark' ? DARK_COLORS.background : LIGHT_COLORS.background } }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="modals" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         </Stack>
+        <AccountRequiredDialog />
+        {CLOUD_ACCOUNT_ENABLED ? <ModuleLockGuard /> : null}
         <StatusBar style={activeScheme === 'dark' ? 'light' : 'dark'} />
       </SafeAreaProvider>
+      </View>
     </GestureHandlerRootView>
   );
 }

@@ -24,8 +24,10 @@
 //     scopée par la combinaison (fournisseur, mois, label) — un choix délibéré
 //     et documenté, pas un oubli : voir le rapport de fusion Étape 4).
 
+import { moduleOfFournisseur, recordActivity } from './activityService';
 import { coreService } from './coreService';
 import { ensureFacturesToolCached } from './facturesService';
+import { formatFcfa } from '@/utils/format';
 import type { FieldValue, RecordItem } from '@/types/entities';
 
 export type RepartitionMode = 'proportionnel' | 'equitable';
@@ -668,6 +670,19 @@ export async function validateRepartition(input: {
       );
     }
     await coreService.updateRecord(facture.id, { statusKey: deriveFacturePartageeStatus(parts), values: { mode_repartition: input.mode } });
+    // Activité : la répartition est figée (couvre aussi la validation par compteur, qui passe par ici).
+    const fournisseur = fournisseurKey(facture.values.fournisseur);
+    const periode = typeof facture.values.mois === 'string' ? facture.values.mois : '';
+    recordActivity({
+      type: 'utility.facture_validated',
+      title: 'Facture validée',
+      description: `${fournisseur === 'ceet' || fournisseur === 'tde' ? fournisseur.toUpperCase() : 'Facture partagée'}${periode ? ` · ${PERIODE_FORMAT.test(periode) ? periodeLabel(periode) : periode}` : ''} · ${formatFcfa(montantTotal)} · ${parts.length} part${parts.length > 1 ? 's' : ''}`,
+      module: moduleOfFournisseur(facture.values.fournisseur),
+      entityType: 'facture_partagee',
+      entityId: facture.id,
+      amount: montantTotal,
+      dedupeKey: `facture-validated:${facture.id}`,
+    });
     return parts;
   } finally {
     validationsEnCours.delete(input.facturePartageeId);
@@ -730,6 +745,18 @@ export async function enregistrerPaiementPart(partId: string, now: Date = new Da
     const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const updated = await coreService.updateRecord(part.id, { statusKey: 'payee', values: { date_paiement: day } });
     await refreshFactureStatus(part.values.facture_partagee, part.toolId, part.entityDefinitionId);
+    const montant = typeof part.values.montant_attribue === 'number' ? part.values.montant_attribue : undefined;
+    const periodePart = typeof part.values.periode === 'string' ? part.values.periode : '';
+    recordActivity({
+      type: 'utility.part_paid',
+      title: 'Part payée',
+      description: `${typeof part.values.label === 'string' && part.values.label ? part.values.label : 'Participant'}${montant !== undefined ? ` · ${formatFcfa(montant)}` : ''}${periodePart ? ` · ${PERIODE_FORMAT.test(periodePart) ? periodeLabel(periodePart) : periodePart}` : ''}`,
+      module: moduleOfFournisseur(part.values.fournisseur),
+      entityType: 'part',
+      entityId: part.id,
+      amount: montant,
+      dedupeKey: `part-paid:${part.id}`,
+    });
     return updated;
   } finally {
     paiementsPartEnCours.delete(partId);

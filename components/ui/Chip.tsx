@@ -13,7 +13,7 @@ export function Chip({ label, active, onPress }: { label: string; active?: boole
       onPress={onPress}
       className={cn('h-8 items-center justify-center rounded-full px-4 active:opacity-80', !active && 'border border-border bg-surface')}
       style={active ? { backgroundColor: Colors.primary } : undefined}>
-      <LabelText className={cn('font-inter-semibold', active ? 'text-white' : 'text-text-secondary')}>
+      <LabelText className="font-inter-semibold" style={{ color: active ? Colors.textOnPrimary : Colors.textSecondary }}>
         {label}
       </LabelText>
     </Pressable>

@@ -50,8 +50,8 @@ export function CreateActivityScreen() {
             icon="savings"
             title="Aucune tontine pour l'instant"
             description="Créez d'abord une tontine pour pouvoir y organiser une activité."
-            actionLabel="Créer une tontine"
-            onAction={() => router.replace('/tontine/create')}
+            actionLabel="Ouvrir l'espace Tontine"
+            onAction={() => router.replace('/tontine' as never)}
           />
         </View>
       </SafeAreaView>

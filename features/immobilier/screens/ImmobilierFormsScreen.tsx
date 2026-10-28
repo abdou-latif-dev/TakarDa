@@ -14,8 +14,8 @@ export function ImmobilierFormsScreen() {
   const [tool, setTool] = useState<Tool | null>(null);
   const [entities, setEntities] = useState<EntityDefinition[]>([]);
   useEffect(() => {
-    ensureImmobilierTool().then(({ tool: ensured, bien, logement, contrat, paiement, depense }) => {
-      setTool(ensured); setEntities([bien, logement, contrat, paiement, depense]);
+    ensureImmobilierTool().then(({ tool: ensured, bien, logement, contrat, paiement }) => {
+      setTool(ensured); setEntities([bien, logement, contrat, paiement]); // « Dépense » n'est plus proposée en V1 (données conservées)
     });
   }, []);
   return <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>

@@ -1,20 +1,22 @@
-import { useCallback, useState } from 'react';
+import { useCloudStore } from '@/store/cloudStore';
+import { SyncBadge } from '@/components/immobilier/SyncBadge';
+import { SyncBanner } from '@/components/immobilier/SyncBanner';
+import { reconcileAdvances } from '@/services/rentAdvanceService';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { getAccountEpoch } from '@/services/cloudVisibility';
 import { Alert, ScrollView, useWindowDimensions, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/ui/AppHeader';
-import { Card } from '@/components/ui/Card';
 import { IconButton, PrimaryButton, SecondaryButton } from '@/components/ui/Button';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { DisplayText, BodyMdText, SectionTitleText, LabelText } from '@/components/ui/Typography';
 import { LogementCard } from '@/components/immobilier/LogementCard';
-import { formatFcfa } from '@/utils/format';
 import { deleteBienCascade, formatOccupancySummary, getBienDeletionImpact, loadBienOverview, type BienOverview } from '@/services/immobilierService';
 
 /** Le BIEN — point central de navigation : ses logements (occupés/vacants),
  * ses dépenses. (CEET/TDE est un module séparé : rien ici.) Recharge à chaque retour sur l'écran
- * (nouveau logement, locataire, paiement, dépense…). */
+ * (nouveau logement, locataire, paiement…). Les dépenses ne sont plus proposées dans l'interface (V1) : leurs données et leurs routes sont conservées. */
 export function BienDetailScreen() {
   const { bienId } = useLocalSearchParams<{ bienId: string }>();
   const [overview, setOverview] = useState<BienOverview | null>(null);
@@ -23,16 +25,34 @@ export function BienDetailScreen() {
   const { width } = useWindowDimensions();
   const wide = width >= 720;
 
-  const load = useCallback(async () => {
+  const lastSyncAt = useCloudStore((s) => s.lastSyncAt);
+  const accountEpoch = useCloudStore((s) => s.accountEpoch);
+  const shownEpoch = useRef(accountEpoch);
+
+  const load = useCallback(async (sync = true) => {
+    const epoch = getAccountEpoch();
     try {
-      setOverview(await loadBienOverview(bienId));
+      await reconcileAdvances().catch(() => 0); // couvre les mois dus par l'avance autorisée (idempotent)
+      await useCloudStore.getState().refreshStates().catch(() => undefined); // modifications locales : « en attente » dès l'affichage
+      if (sync) void useCloudStore.getState().syncIfEnabled();
+      const next = await loadBienOverview(bienId);
+      if (epoch !== getAccountEpoch()) return; // résultat d'un ancien compte : écarté
+      setOverview(next);
       setError(false);
     } catch {
-      setError(true);
+      if (epoch === getAccountEpoch()) setError(true);
     }
   }, [bienId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+  useEffect(() => { if (lastSyncAt) load(false); }, [lastSyncAt, load]);
+  // Changement de compte pendant que l'écran est ouvert : le bien peut être devenu invisible pour ce compte.
+  useEffect(() => {
+    if (shownEpoch.current === accountEpoch) return;
+    shownEpoch.current = accountEpoch;
+    setOverview(null);
+    load(false);
+  }, [accountEpoch, load]);
 
   const onDeleteBien = async () => {
     const impact = await getBienDeletionImpact(bienId);
@@ -89,8 +109,7 @@ export function BienDetailScreen() {
     );
   }
 
-  const { bien, views, summary, depenses } = overview;
-  const totalDepenses = depenses.reduce((sum, d) => sum + (typeof d.values.montant === 'number' ? d.values.montant : 0), 0);
+  const { bien, views, summary } = overview;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
@@ -100,7 +119,10 @@ export function BienDetailScreen() {
           <DisplayText className="text-2xl" numberOfLines={2}>{String(bien.values.nom)}</DisplayText>
           <BodyMdText numberOfLines={2}>{String(bien.values.adresse ?? '')}</BodyMdText>
           <LabelText className="mt-2 font-inter-semibold text-text-primary">{formatOccupancySummary(summary)}</LabelText>
+          <View className="mt-1"><SyncBadge recordId={bien.id} /></View>
         </View>
+
+        <SyncBanner />
 
         <View className="flex-row gap-3">
           <SecondaryButton
@@ -140,37 +162,6 @@ export function BienDetailScreen() {
                 </View>
               ))}
             </View>
-          )}
-        </View>
-
-        <View className="gap-3">
-          <SectionHeader title="Dépenses" action="Ajouter" onAction={() => router.push(`/immobilier/${bienId}/depense-new`)} />
-          {depenses.length === 0 ? (
-            <EmptyState compact icon="receipt" title="Aucune dépense" description="Suivez l'entretien et les charges de ce bien." />
-          ) : (
-            <Card className="gap-0 p-0">
-              {depenses.map((d, i) => (
-                <View key={d.id}>
-                  {i > 0 && <View className="h-px bg-border" />}
-                  <View className="flex-row items-center gap-3 p-gutter-card">
-                    <View className="flex-1">
-                      <SectionTitleText className="text-base" numberOfLines={1}>
-                        {String(d.values.libelle ?? '')}
-                      </SectionTitleText>
-                      <LabelText numberOfLines={1}>{d.values.date ? String(d.values.date) : ''}</LabelText>
-                    </View>
-                    <LabelText className="font-inter-semibold text-text-primary" numberOfLines={1}>
-                      {typeof d.values.montant === 'number' ? formatFcfa(d.values.montant) : '—'}
-                    </LabelText>
-                  </View>
-                </View>
-              ))}
-              <View className="h-px bg-border" />
-              <View className="flex-row items-center gap-3 p-gutter-card">
-                <LabelText className="flex-1 font-inter-semibold text-text-primary">Total dépenses</LabelText>
-                <LabelText className="font-inter-semibold text-text-primary" numberOfLines={1}>{formatFcfa(totalDepenses)}</LabelText>
-              </View>
-            </Card>
           )}
         </View>
 

@@ -18,13 +18,14 @@ const ICONS: Partial<Record<StatusKind, keyof typeof MaterialIcons.glyphMap>> = 
  * with the color, and an icon for the states where ambiguity matters most.
  */
 export function StatusBadge({ status, className }: { status: StatusKind; className?: string }) {
+  // Suit le thème actif de l'application (réglage Apparence : clair, sombre ou système).
   const { colorScheme } = useColorScheme();
   const { bg, text, label } = getStatusColors(colorScheme === 'dark' ? 'dark' : 'light')[status];
   const icon = ICONS[status];
   return (
     <View
-      className={cn('flex-row items-center gap-1 self-start rounded-full px-3 py-1', className)}
-      style={{ backgroundColor: bg }}>
+      className={cn('min-h-6 flex-row items-center gap-1 self-start rounded-full border px-2.5 py-0.5', className)}
+      style={{ backgroundColor: bg, borderColor: `${text}33` }}>
       {icon && <MaterialIcons name={icon} size={13} color={text} />}
       <LabelText style={{ color: text }} className="font-inter-semibold">
         {label}

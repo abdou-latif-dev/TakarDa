@@ -348,3 +348,9 @@ export function ensureFacturesToolCached(): Promise<FacturesEntities> {
   }
   return cachedEnsure;
 }
+
+/** Oublie les définitions mises en cache : à appeler quand la base en mémoire est remplacée (changement d'espace de travail : démonstration ↔ personnel), sinon les identifiants
+ * d'un espace serviraient à lire et à écrire dans l'autre. Ne touche à aucune donnée. */
+export function resetFacturesToolCache(): void {
+  cachedEnsure = null;
+}

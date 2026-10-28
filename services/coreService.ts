@@ -23,6 +23,8 @@ import {
   toolMembers,
   tools,
 } from './db';
+import { assertDocumentTargetAvailable, isDocumentLocked, assertToolAvailable, assertToolKindAvailable, isContactLockedOut, isToolLockedForAccount, lockedToolIds, ownerForNewContact } from './moduleLock';
+import { getActiveCloudUid, isContactVisible, isRecordVisible, ownerForNewRecord, visibleContactsFor, visibleEventsFor, visibleRecordsFor } from './cloudVisibility';
 import type {
   CoreEventType,
   DocumentRef,
@@ -69,6 +71,7 @@ export const coreService = {
     templateKey?: string;
     settings?: Record<string, FieldValue>;
   }): Promise<Tool> {
+    assertToolKindAvailable(input.kind);
     await delay();
     const now = new Date().toISOString();
     const tool: Tool = {
@@ -90,18 +93,20 @@ export const coreService = {
 
   async getTool(id: string): Promise<Tool | null> {
     await delay(150);
-    return tools.find((t) => t.id === id) ?? null;
+    return isToolLockedForAccount(id) ? null : (tools.find((t) => t.id === id) ?? null); // outil verrouillé en contexte multi-compte : introuvable
   },
 
   async getTools(filter?: { kind?: ToolKind }): Promise<Tool[]> {
     await delay();
-    return tools.filter((t) => t.ownerId === CURRENT_USER_ID && (!filter?.kind || t.kind === filter.kind));
+    const locked = lockedToolIds();
+    return tools.filter((t) => !locked.has(t.id) && t.ownerId === CURRENT_USER_ID && (!filter?.kind || t.kind === filter.kind));
   },
 
   async updateTool(id: string, patch: Partial<Pick<Tool, 'name' | 'icon' | 'settings'>>): Promise<Tool> {
     await delay();
     const tool = tools.find((t) => t.id === id);
     if (!tool) throw new Error('Outil introuvable.');
+    assertToolAvailable(id);
     Object.assign(tool, patch);
     tool.updatedAt = new Date().toISOString();
     return tool;
@@ -111,6 +116,7 @@ export const coreService = {
     await delay();
     const index = tools.findIndex((t) => t.id === id);
     if (index === -1) return;
+    assertToolAvailable(id); // module verrouillé : l'outil, ses enregistrements et ses membres ne sont jamais supprimés
     const [removed] = tools.splice(index, 1);
     const edIds = entityDefinitions.filter((ed) => ed.toolId === id).map((ed) => ed.id);
     for (let i = entityDefinitions.length - 1; i >= 0; i--) if (entityDefinitions[i].toolId === id) entityDefinitions.splice(i, 1);
@@ -168,6 +174,7 @@ export const coreService = {
     await delay();
     const entityDefinition = entityDefinitions.find((e) => e.id === id);
     if (!entityDefinition) throw new Error('Entité introuvable.');
+    assertToolAvailable(entityDefinition.toolId);
     Object.assign(entityDefinition, patch);
     entityDefinition.updatedAt = new Date().toISOString();
     return entityDefinition;
@@ -177,6 +184,7 @@ export const coreService = {
     await delay();
     const index = entityDefinitions.findIndex((e) => e.id === id);
     if (index === -1) return;
+    assertToolAvailable(entityDefinitions[index].toolId);
     const [removed] = entityDefinitions.splice(index, 1);
     for (let i = records.length - 1; i >= 0; i--) if (records[i].entityDefinitionId === id) records.splice(i, 1);
     const tool = tools.find((t) => t.id === removed.toolId);
@@ -185,15 +193,27 @@ export const coreService = {
 
   // ================= Records =================
   async createRecord(input: {
+    /** Identifiant imposé, réservé aux enregistrements DÉRIVÉS à clé logique unique (voir services/sync/derivedIds.ts). Si un
+     * enregistrement porte déjà cet identifiant, il est renvoyé tel quel : rien n'est créé, écrasé ni journalisé. */
+    id?: string;
     entityDefinitionId: string;
     toolId: string;
     values: Record<string, FieldValue>;
     statusKey?: string;
   }): Promise<RecordItem> {
+    assertToolAvailable(input.toolId); // module verrouillé en contexte multi-compte : aucune création
     await delay();
+    if (input.id !== undefined) {
+      if (!/^[A-Za-z0-9_-]{1,200}$/.test(input.id)) throw new Error('Identifiant d’enregistrement invalide.');
+      const existing = records.find((r) => r.id === input.id);
+      if (existing) {
+        if (existing.entityDefinitionId !== input.entityDefinitionId || existing.toolId !== input.toolId) throw new Error('Identifiant déjà utilisé par un autre type d’enregistrement.');
+        return existing; // idempotent : le même fait logique n'est jamais créé deux fois
+      }
+    }
     const now = new Date().toISOString();
     const record: RecordItem = {
-      id: genId('rec'),
+      id: input.id ?? genId('rec'),
       entityDefinitionId: input.entityDefinitionId,
       toolId: input.toolId,
       values: input.values,
@@ -202,6 +222,8 @@ export const coreService = {
       createdAt: now,
       updatedAt: now,
     };
+    const owner = ownerForNewRecord(record); // marquage dès la création pour le compte dont la synchronisation est activée
+    if (owner) record.cloudOwnerUid = owner;
     records.push(record);
     logEvent({
       toolId: input.toolId,
@@ -215,14 +237,17 @@ export const coreService = {
 
   async getRecord(id: string): Promise<RecordItem | null> {
     await delay(150);
-    return records.find((r) => r.id === id) ?? null;
+    const found = records.find((r) => r.id === id);
+    return found && !isToolLockedForAccount(found.toolId) && isRecordVisible(found, records, getActiveCloudUid()) ? found : null;
   },
 
   async getRecords(filter: { toolId?: string; entityDefinitionId?: string; statusKey?: string }): Promise<RecordItem[]> {
     await delay();
-    return records
+    const locked = lockedToolIds();
+    return visibleRecordsFor(records, getActiveCloudUid())
       .filter(
         (r) =>
+          !locked.has(r.toolId) &&
           (!filter.toolId || r.toolId === filter.toolId) &&
           (!filter.entityDefinitionId || r.entityDefinitionId === filter.entityDefinitionId) &&
           (!filter.statusKey || r.statusKey === filter.statusKey),
@@ -233,7 +258,9 @@ export const coreService = {
   async updateRecord(id: string, patch: { values?: Record<string, FieldValue>; statusKey?: string }): Promise<RecordItem> {
     await delay();
     const record = records.find((r) => r.id === id);
-    if (!record) throw new Error('Enregistrement introuvable.');
+    // un enregistrement masqué (d'un autre compte) est introuvable : jamais modifiable (écran resté ouvert, identifiant connu…)
+    if (!record || !isRecordVisible(record, records, getActiveCloudUid())) throw new Error('Enregistrement introuvable.');
+    assertToolAvailable(record.toolId);
     const statusChanged = patch.statusKey !== undefined && patch.statusKey !== record.statusKey;
     const previousStatus = record.statusKey ?? null;
     const valueDiff = patch.values
@@ -274,6 +301,8 @@ export const coreService = {
     await delay();
     const index = records.findIndex((r) => r.id === id);
     if (index === -1) return;
+    if (!isRecordVisible(records[index], records, getActiveCloudUid())) return; // masqué (autre compte) : jamais supprimé
+    assertToolAvailable(records[index].toolId); // module verrouillé : aucune suppression
     const [removed] = records.splice(index, 1);
     logEvent({
       toolId: removed.toolId,
@@ -293,6 +322,7 @@ export const coreService = {
     contactId?: string;
     displayName: string;
   }): Promise<ToolMember> {
+    assertToolAvailable(input.toolId);
     await delay();
     const member: ToolMember = {
       id: genId('mem'),
@@ -312,6 +342,7 @@ export const coreService = {
 
   async getToolMembers(toolId: string): Promise<ToolMember[]> {
     await delay();
+    if (isToolLockedForAccount(toolId)) return [];
     return toolMembers.filter((m) => m.toolId === toolId);
   },
 
@@ -319,6 +350,7 @@ export const coreService = {
     await delay();
     const member = toolMembers.find((m) => m.id === id);
     if (!member) throw new Error('Membre introuvable.');
+    assertToolAvailable(member.toolId);
     Object.assign(member, patch);
     return member;
   },
@@ -327,6 +359,7 @@ export const coreService = {
     await delay();
     const index = toolMembers.findIndex((m) => m.id === id);
     if (index === -1) return;
+    assertToolAvailable(toolMembers[index].toolId);
     const [removed] = toolMembers.splice(index, 1);
     logEvent({ toolId: removed.toolId, type: 'member_removed', summary: `${removed.displayName} a été retiré·e.` });
   },
@@ -341,6 +374,7 @@ export const coreService = {
 
   async getRoleDefinitions(toolId: string): Promise<RoleDefinition[]> {
     await delay(150);
+    if (isToolLockedForAccount(toolId)) return [];
     return roleDefinitions.filter((r) => r.toolId === toolId);
   },
 
@@ -355,6 +389,7 @@ export const coreService = {
       note: input.note,
       createdBy: CURRENT_USER_ID,
       createdAt: new Date().toISOString(),
+      ...(ownerForNewContact() ? { cloudOwnerUid: ownerForNewContact() } : {}), // contexte multi-compte : visible pour son créateur seul
     };
     externalContacts.push(contact);
     return contact;
@@ -362,12 +397,13 @@ export const coreService = {
 
   async getExternalContact(id: string): Promise<ExternalContact | null> {
     await delay(150);
-    return externalContacts.find((c) => c.id === id) ?? null;
+    const found = externalContacts.find((c) => c.id === id);
+    return found && isContactVisible(found, externalContacts, records, getActiveCloudUid()) && !isContactLockedOut(found) ? found : null;
   },
 
   async getExternalContacts(): Promise<ExternalContact[]> {
     await delay();
-    return externalContacts.filter((c) => c.createdBy === CURRENT_USER_ID);
+    return visibleContactsFor(externalContacts, records, getActiveCloudUid()).filter((c) => c.createdBy === CURRENT_USER_ID && !isContactLockedOut(c));
   },
 
   async updateExternalContact(
@@ -376,7 +412,7 @@ export const coreService = {
   ): Promise<ExternalContact> {
     await delay();
     const contact = externalContacts.find((c) => c.id === id);
-    if (!contact) throw new Error('Contact introuvable.');
+    if (!contact || !isContactVisible(contact, externalContacts, records, getActiveCloudUid()) || isContactLockedOut(contact)) throw new Error('Contact introuvable.');
     Object.assign(contact, patch);
     return contact;
   },
@@ -384,7 +420,7 @@ export const coreService = {
   async deleteExternalContact(id: string): Promise<void> {
     await delay();
     const index = externalContacts.findIndex((c) => c.id === id);
-    if (index !== -1) externalContacts.splice(index, 1);
+    if (index !== -1 && isContactVisible(externalContacts[index], externalContacts, records, getActiveCloudUid()) && !isContactLockedOut(externalContacts[index])) externalContacts.splice(index, 1);
   },
 
   // ================= Documents =================
@@ -396,6 +432,7 @@ export const coreService = {
     uri: string;
     name?: string;
   }): Promise<DocumentRef> {
+    assertDocumentTargetAvailable(input);
     await delay(200);
     const doc: DocumentRef = {
       id: genId('doc'),
@@ -413,14 +450,16 @@ export const coreService = {
 
   async getDocument(id: string): Promise<DocumentRef | null> {
     await delay(150);
-    return documents.find((d) => d.id === id) ?? null;
+    const found = documents.find((d) => d.id === id) ?? null;
+    return found && !isDocumentLocked(found) ? found : null; // pièce jointe d'un module verrouillé : introuvable
   },
 
   // ================= Events (read-only from here — logEvent above is internal) =================
   async getEvents(filter: { toolId?: string; recordId?: string }) {
     await delay(200);
-    return events
-      .filter((e) => (!filter.toolId || e.toolId === filter.toolId) && (!filter.recordId || e.recordId === filter.recordId))
+    const locked = lockedToolIds();
+    return visibleEventsFor(events, records, getActiveCloudUid())
+      .filter((e) => !(e.toolId && locked.has(e.toolId)) && (!filter.toolId || e.toolId === filter.toolId) && (!filter.recordId || e.recordId === filter.recordId))
       .sort((a, b) => (a.at < b.at ? 1 : -1));
   },
 };

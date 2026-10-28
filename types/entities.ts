@@ -244,17 +244,51 @@ export type ActivityType =
   | 'order_updated'
   | 'cycle_completed'
   | 'form_deleted'
-  | 'tontine_deleted';
+  | 'tontine_deleted'
+  // Nouveaux événements (Phase 3), nommés « module.action ». Les types ci-dessus sont
+  // historiques et conservés tels quels (des données existantes les portent).
+  | 'immobilier.bien_created'
+  | 'immobilier.bien_deleted'
+  | 'immobilier.logement_created'
+  | 'immobilier.contrat_created'
+  | 'immobilier.contrat_ended'
+  | 'immobilier.loyer_paid'
+  | 'utility.participant_added'
+  | 'utility.releves_saved'
+  | 'utility.facture_validated'
+  | 'utility.part_paid'
+  | 'tool.installed'
+  | 'tool.hidden'
+  | 'tool.restored';
 
+/** Module d'origine d'une activité (sert aux filtres du journal). */
+export type ActivityModule = 'tontine' | 'immobilier' | 'ceet' | 'tde' | 'formulaires';
+
+/** Une ligne du journal « Activités » : une action MÉTIER réussie, jamais une
+ * interaction d'écran. Écrite par les services via activityService.recordActivity.
+ * Les champs ajoutés en Phase 3 sont facultatifs : les anciennes lignes restent valides. */
 export interface ActivityEvent {
   id: ID;
+  /** Compte cloud sous lequel l'activité a été enregistrée (synchronisation active) ; absent = activité locale historique (visible pour tous). */
+  cloudOwnerUid?: string;
   type: ActivityType;
   title: string;
   description: string;
   groupId?: ID;
+  /** Personne concernée par l'action (ex. le membre ajouté), pas l'auteur. */
   userName?: string;
   amount?: number;
+  /** Date de l'action (ISO). Nom historique conservé : pas de migration. */
   at: ISODateString;
+  /** Auteur de l'action (getCurrentUserId() au moment de l'enregistrement). */
+  userId?: ID;
+  module?: ActivityModule;
+  toolId?: ID;
+  /** Objet concerné, pour pouvoir l'ouvrir plus tard (ex. 'tontine' + id du groupe). */
+  entityType?: string;
+  entityId?: ID;
+  /** Clé d'idempotence : deux enregistrements avec la même clé n'en créent qu'un. */
+  dedupeKey?: string;
 }
 
 // ---- Notifications ----------------------------------------------------------
@@ -299,7 +333,8 @@ export interface StatisticsOverview {
 // `RecordItem` to avoid shadowing it.
 // ================================================================================
 
-export type ToolKind = 'tontine' | 'immobilier' | 'facture' | 'commerce' | 'custom';
+// 'ceet' et 'tde' : enveloppes de registre (Mes Outils) ; leurs données restent dans l'outil 'facture'.
+export type ToolKind = 'tontine' | 'immobilier' | 'facture' | 'commerce' | 'ceet' | 'tde' | 'custom';
 
 export interface Tool {
   id: ID;
@@ -398,6 +433,9 @@ export interface RecordItem {
   values: Record<string, FieldValue>; // keyed by FieldDefinition.key
   statusKey?: string; // references one of EntityDefinition.statuses[].key
   createdBy: ID;
+  // UID du compte cloud dont la synchronisation suit cet enregistrement ; absent = donnée locale historique (visible pour tous).
+  // Jamais envoyé à Firestore. Voir services/cloudVisibility.ts.
+  cloudOwnerUid?: string;
   createdAt: ISODateString;
   updatedAt: ISODateString;
 }
@@ -444,6 +482,8 @@ export interface ExternalContact {
   note?: string;
   createdBy: ID;
   linkedUserId?: ID; // filled in later if this person ever creates a real TakarDa account — not built yet
+  /** Compte cloud auquel ce contact (locataire reçu du cloud) appartient ; absent = donnée locale historique (visible pour tous). Jamais envoyé. */
+  cloudOwnerUid?: string;
   createdAt: ISODateString;
 }
 

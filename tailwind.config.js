@@ -12,7 +12,7 @@ module.exports = {
         // Accent — the one color allowed to vary (see constants/theme.ts's
         // header comment). Everything else here is a fixed neutral or a
         // fixed semantic feedback color.
-        primary: { DEFAULT: 'rgb(var(--td-primary) / <alpha-value>)', dark: 'rgb(var(--td-primary-dark) / <alpha-value>)', light: 'rgb(var(--td-primary-light) / <alpha-value>)', soft: 'rgb(var(--td-primary-soft) / <alpha-value>)' },
+        primary: { DEFAULT: 'rgb(var(--td-primary) / <alpha-value>)', dark: 'rgb(var(--td-primary-dark) / <alpha-value>)', light: 'rgb(var(--td-primary-light) / <alpha-value>)', soft: 'rgb(var(--td-primary-soft) / <alpha-value>)', on: 'rgb(var(--td-on-primary) / <alpha-value>)' },
         background: 'rgb(var(--td-background) / <alpha-value>)',
         'background-secondary': 'rgb(var(--td-background-secondary) / <alpha-value>)',
         surface: 'rgb(var(--td-surface) / <alpha-value>)',
@@ -49,16 +49,18 @@ module.exports = {
         'manrope-semibold': ['Manrope_600SemiBold'],
         'manrope-bold': ['Manrope_700Bold'],
         'manrope-extrabold': ['Manrope_800ExtraBold'],
-        inter: ['Inter_400Regular'],
-        'inter-medium': ['Inter_500Medium'],
-        'inter-semibold': ['Inter_600SemiBold'],
+        // Design system Stitch : Manrope partout. Les anciens noms « inter* » (utilisés dans tout le code) pointent
+        // maintenant vers les graisses Manrope équivalentes — un seul endroit à changer.
+        inter: ['Manrope_400Regular'],
+        'inter-medium': ['Manrope_500Medium'],
+        'inter-semibold': ['Manrope_600SemiBold'],
       },
       borderRadius: {
         sm: '4px',
         DEFAULT: '8px',
         md: '12px',
-        lg: '16px',
-        xl: '20px',
+        lg: '22px',
+        xl: '24px',
       },
       spacing: {
         'page-margin': '20px',
@@ -68,7 +70,7 @@ module.exports = {
       boxShadow: {
         // Neutral black — reads reasonably in both themes without needing a
         // CSS variable (kept static on purpose; see the Étape 4A theme audit).
-        soft: '0px 4px 12px rgba(0,0,0,0.05)',
+        soft: '0px 2px 10px -2px rgba(15,23,42,0.05), 0px 1px 3px -1px rgba(15,23,42,0.03)',
         // Was hardcoded to the LIGHT primary's RGB (23,23,23) — in dark mode
         // the accent becomes near-white, so this stayed dark-tinted forever.
         // Now follows --td-primary like every other accent-based color.

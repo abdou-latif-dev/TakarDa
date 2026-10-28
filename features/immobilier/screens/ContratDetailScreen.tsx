@@ -1,3 +1,4 @@
+import { reconcileAdvances } from '@/services/rentAdvanceService';
 import { useCallback, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -12,10 +13,14 @@ import { ErrorState, LoadingState } from '@/components/ui/States';
 import { SectionTitleText, LabelText, BodyMdText } from '@/components/ui/Typography';
 import { InfoRow } from '@/components/immobilier/InfoRow';
 import { PaiementsSection } from '@/components/immobilier/PaiementsSection';
+import { AdvanceCard } from '@/components/immobilier/AdvanceCard';
 import { Colors } from '@/constants/theme';
+import { MonthsAmountField } from '@/components/immobilier/MonthsAmountField';
+import { describeDueDay } from '@/services/rentTermsService';
 import { CoreFieldRenderer } from '@/components/core/CoreFieldRenderer';
 import { formatFcfa, formatRelativeTime } from '@/utils/format';
 import { coreService } from '@/services/coreService';
+import { adviseMutation } from '@/services/effectivePayments';
 import {
   deleteContratCascade,
   ensureImmobilierTool,
@@ -57,6 +62,7 @@ export function ContratDetailScreen() {
 
   const load = useCallback(async () => {
     try {
+      await reconcileAdvances().catch(() => 0);
       const [result, ents] = await Promise.all([loadContratDetail(contratId), ensureImmobilierTool()]);
       setDetail(result);
       setCustomFields(ents.contrat.fields.filter((f) => f.key.startsWith('custom_')));
@@ -96,7 +102,7 @@ export function ContratDetailScreen() {
   const locataireNom = locataire?.name ?? (typeof contrat.values.locataire_nom === 'string' ? contrat.values.locataire_nom : '—');
   const montant = (value: unknown) => (typeof value === 'number' ? formatFcfa(value) : '—');
   // Anciens paiements créés « en attente » (ou rejetés) avant la simplification : toujours validables.
-  const legacyPaiements = paiements.filter((p) => p.statusKey !== 'paye');
+  const legacyPaiements = paiements.filter((p) => p.statusKey !== 'paye' && p.statusKey !== 'couvert');
 
   const startEdit = () => {
     setNom(locataire?.name ?? '');
@@ -118,7 +124,7 @@ export function ContratDetailScreen() {
     if (locataire && !isValidPhone(telephone)) return Alert.alert('Téléphone invalide', 'Indiquez un numéro de 8 à 15 chiffres.');
     const jourEcheance = jour.trim() ? Number(jour) : null;
     if (jourEcheance !== null && (!Number.isInteger(jourEcheance) || jourEcheance < 1 || jourEcheance > 31)) {
-      return Alert.alert('Jour d’échéance invalide', 'Saisissez un jour entre 1 et 31, ou laissez vide.');
+      return Alert.alert('Jour de paiement invalide', 'Saisissez un jour entre 1 et 31, ou laissez vide.');
     }
     setSaving(true);
     try {
@@ -193,6 +199,8 @@ export function ContratDetailScreen() {
       {
         text: 'Marquer payé',
         onPress: async () => {
+          const advice = await adviseMutation(paiement, 'edit');
+          if (!advice.allowed) { Alert.alert('Paiement confirmé', advice.reason ?? 'Modification impossible.'); return; }
           await coreService.updateRecord(paiement.id, { statusKey: 'paye', values: { date_validation: toIsoDay(new Date()) } });
           await load();
         },
@@ -201,6 +209,8 @@ export function ContratDetailScreen() {
         text: 'Marquer rejeté',
         style: 'destructive',
         onPress: async () => {
+          const advice = await adviseMutation(paiement, 'reject');
+          if (!advice.allowed) { Alert.alert('Paiement confirmé', advice.reason ?? 'Rejet impossible.'); return; }
           await coreService.updateRecord(paiement.id, { statusKey: 'rejete' });
           await load();
         },
@@ -250,9 +260,10 @@ export function ContratDetailScreen() {
               <TextField label="Loyer mensuel *" value={loyer} onChangeText={setLoyer} keyboardType="numeric" icon="payments" />
               <DateField label="Date d'entrée" value={dateEntree} onChange={setDateEntree} />
               <MonthPicker label="Dernier loyer payé" value={dernierLoyer} onChange={setDernierLoyer} />
-              <TextField label="Caution" value={caution} onChangeText={setCaution} keyboardType="numeric" icon="payments" />
-              <TextField label="Avance" value={avance} onChangeText={setAvance} keyboardType="numeric" icon="payments" />
-              <TextField label="Jour d'échéance (1-31)" value={jour} onChangeText={setJour} keyboardType="numeric" />
+              <MonthsAmountField label="Avance" value={avance} onChange={setAvance} monthlyRent={parseAmount(loyer)} />
+              <MonthsAmountField label="Caution" value={caution} onChange={setCaution} monthlyRent={parseAmount(loyer)} />
+              <TextField label="Jour de paiement du loyer (1 à 31)" value={jour} onChangeText={setJour} keyboardType="numeric" />
+              <LabelText>Le loyer est attendu {describeDueDay(Number(jour)) ?? 'un jour fixe du mois'}. Indicatif : un loyer est en retard une fois le mois écoulé.</LabelText>
               {customFields.map((field) => (
                 <CoreFieldRenderer
                   key={field.id}
@@ -291,7 +302,7 @@ export function ContratDetailScreen() {
                 {typeof contrat.values.jour_echeance === 'number' && (
                   <>
                     <View className="h-px bg-border" />
-                    <InfoRow label="Échéance" value={`le ${contrat.values.jour_echeance} du mois`} />
+                    <InfoRow label="Jour de paiement" value={describeDueDay(contrat.values.jour_echeance as number) ?? `le ${contrat.values.jour_echeance} du mois`} />
                   </>
                 )}
                 {customFields.map((field) => (
@@ -305,6 +316,8 @@ export function ContratDetailScreen() {
               {actif && <SecondaryButton label="Terminer le contrat" icon="logout" onPress={onTerminer} />}
             </>
           )}
+
+          <AdvanceCard contrat={contrat} paiements={paiements} onChanged={load} />
 
           <PaiementsSection
             contrat={contrat}

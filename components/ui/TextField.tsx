@@ -13,7 +13,7 @@ interface TextFieldProps extends Omit<ComponentProps<typeof TextInput>, 'style'>
   containerClassName?: string;
 }
 
-/** h-52 bordered input, label above, optional left icon and secure-text toggle. Focus ring turns primary orange. */
+/** h-12 (48) bordered input, label above, optional left icon and secure-text toggle. Le focus passe la bordure en violet primaire. */
 export function TextField({
   label,
   error,
@@ -31,7 +31,7 @@ export function TextField({
       {label && <LabelText className="text-text-secondary">{label}</LabelText>}
       <View
         className={cn(
-          'h-[52px] flex-row items-center rounded-md border bg-surface px-4',
+          'h-12 flex-row items-center rounded-md border bg-surface px-4',
           focused ? 'border-primary' : 'border-border',
           error && 'border-error',
         )}>

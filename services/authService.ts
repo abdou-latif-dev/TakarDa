@@ -2,7 +2,8 @@
 // backend later means rewriting the bodies below — callers (store/authStore)
 // never touch db.ts or storage.ts directly.
 
-import { CURRENT_USER_ID, delay, users } from './db';
+import { delay } from './db';
+import { ensureLocalUser } from './identityService';
 import { storage } from './storage';
 import type { User } from '@/types/entities';
 
@@ -20,15 +21,13 @@ export interface SignUpPayload {
 }
 
 async function findCurrentUser(): Promise<User> {
-  const user = users.find((u) => u.id === CURRENT_USER_ID);
-  if (!user) throw new Error('Utilisateur introuvable.');
-  return user;
+  return ensureLocalUser();
 }
 
 export const authService = {
-  async restoreSession(): Promise<User | null> {
-    const hasSession = await storage.get<{ userId: string }>(SESSION_KEY);
-    if (!hasSession) return null;
+  /** V1 sans compte : l'application s'ouvre toujours sur le profil local. La clé de
+   * session n'est plus nécessaire pour entrer (login/signUp continuent de l'écrire). */
+  async restoreSession(): Promise<User> {
     return findCurrentUser();
   },
 

@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "validation": {
+    "emulatorLocal": {
+      "date": "2026-10-21",
+      "environment": "Émulateur Firestore local (cloud-firestore-emulator v1.22.0, firebase-tools 15.33.0), projets fictifs demo-*, Authentication simulée",
+      "candidatPrecedent": "SHA-256 0927a59475317d3582ad115d8e68c77fe0ca699fd1856a1e7448f9190fee1167 (avant le marqueur « compte supprimé ») : preuves ci-dessous valables pour CE candidat-là seulement",
+      "modulesRulesMatrix": "244 cas réussis (politique de référence et vraies règles)",
+      "twoAccountFlows": "9 scénarios réussis (adaptateur Firestore réel)",
+      "emergencyRules": "5 tests réussis (variantes 1 et 2)",
+      "negativeControls": "6 casses volontaires, chacune détectée par les cas attendus",
+      "candidatActuel": {
+        "sha256": "a84dcdea4a292aca7146f30afe8ef0c4506ca351343e9de372d4b508d940f8f6",
+        "date": "2026-10-22",
+        "environment": "Émulateur Firestore local (cloud-firestore-emulator v1.22.0, firebase-tools 15.33.0), projets fictifs demo-*, Authentication simulée",
+        "modulesRulesMatrix": "252 cas réussis sur 252 (244 d’origine + 8 « compte supprimé » : 5 refus, 2 autorisations de la procédure de suppression, 1 témoin)",
+        "twoAccountFlows": "9 scénarios réussis sur 9 (dont la suppression de compte complète avec le marqueur, par l’adaptateur Firestore réel)",
+        "emergencyRules": "5 tests réussis sur 5 (variantes 1 et 2, régénérées pour ce candidat)",
+        "accountTombstone": "8 scénarios réussis sur 8 : vivant (lots de 20), ancien jeton après suppression complète (profil, espace, enregistrement, synchronisation, espace partagé refusés), contrôle négatif sans marqueur (le défaut réapparaît), marqueur définitif, reprise, isolation d’un autre compte, forme du marqueur, interruption puis reprise",
+        "negativeControlRules": "copie volontairement privée de la protection (hors dépôt) : 6 cas de la matrice et 2 scénarios « compte supprimé » ÉCHOUENT comme attendu ; les 2 autorisations de la procédure de suppression restent réussies",
+        "ressourcesObservees": "minimums pendant l’exécution : disque 262 Mo, mémoire libre 192 Mo ; tas Java plafonné à 256 Mo",
+        "limites": "Authentication simulée ; l’heure des règles est celle de l’émulateur ; aucune preuve sur le service réel avec CE candidat (non publié sur le projet de test)"
+      }
+    },
+    "projetDeTest": "non fait avec ce candidat : les tests réels du 22 octobre 2026 ont visé le niveau P4 déjà publié sur takarda-n2-test (sonde, deletion, rules, concurrency, sync, token, deletionFlow) ; la publication du candidat sur le projet de test n’a pas été autorisée",
+    "production": "non publié"
+  },
+  "candidate": {
+    "file": "firestore.p5.rules",
+    "sha256": "a84dcdea4a292aca7146f30afe8ef0c4506ca351343e9de372d4b508d940f8f6"
+  },
+  "emergency": {
+    "writesOff": {
+      "file": "firestore.emergency-writes-off.rules",
+      "sha256": "33de306cf858f90d978aecc654a0d3cd54388a90ca9dcc9ce41498ca3b541d8c"
+    },
+    "allOff": {
+      "file": "firestore.emergency-all-off.rules",
+      "sha256": "1315db6021add6078ed51a8e030e8ce7bb7a5a017d0a1c66e219cefabcff3bc1"
+    }
+  }
+}

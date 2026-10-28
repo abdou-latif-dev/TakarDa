@@ -1,4 +1,6 @@
 import { activityEvents, delay, forms, groups, submissions } from './db';
+import { visibleActivities } from './activityService';
+import { assertModuleAvailable, isModuleLocked } from './moduleLock';
 import type { StatisticsOverview } from '@/types/entities';
 
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -23,19 +25,20 @@ export const statisticsService = {
   async getOverview(): Promise<StatisticsOverview> {
     await delay();
     return {
-      formsCount: forms.length,
+      formsCount: isModuleLocked('formulaires') ? 0 : forms.length,
       formsTrend: null,
-      qrScannedCount: activityEvents.filter((e) => e.type === 'qr_scanned').length,
+      qrScannedCount: visibleActivities(activityEvents).filter((e) => e.type === 'qr_scanned').length,
       qrScannedTrend: null,
-      tontinesCount: groups.filter((g) => g.kind === 'tontine').length,
+      tontinesCount: isModuleLocked('tontine') ? 0 : groups.filter((g) => g.kind === 'tontine').length,
       tontinesTrend: null,
-      activitiesCount: activityEvents.length,
+      activitiesCount: visibleActivities(activityEvents).length,
       activitiesTrend: null,
-      weeklyActivity: countByDayOfLast7Days(activityEvents.map((e) => e.at)),
+      weeklyActivity: countByDayOfLast7Days(visibleActivities(activityEvents).map((e) => e.at)),
     };
   },
 
   async getFormStatistics(formId: string) {
+    assertModuleAvailable('formulaires'); // réponses sans propriétaire : indisponibles en contexte multi-compte (moduleLock.ts)
     await delay(300);
     const relevant = submissions.filter((s) => s.formId === formId);
     return {

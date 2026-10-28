@@ -1,3 +1,4 @@
+import { ModuleLockedError } from '@/services/moduleLock';
 import { useEffect } from 'react';
 import { Alert, Share, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,26 +10,7 @@ import { LoadingState } from '@/components/ui/States';
 import { HeadlineText, BodyMdText, LabelText, BodyLgText } from '@/components/ui/Typography';
 import { Colors } from '@/constants/theme';
 import { useStorageUsageStore } from '@/store/storageUsageStore';
-import {
-  activityEvents,
-  contributions,
-  documents,
-  entityDefinitions,
-  events,
-  externalContacts,
-  forms,
-  groups,
-  memberships,
-  notifications,
-  records,
-  roleDefinitions,
-  submissions,
-  tontineCycles,
-  toolMembers,
-  tools,
-  users,
-  workflowRules,
-} from '@/services/db';
+import { createBackup, serializeBackup } from '@/services/backupService';
 
 const ROWS = [
   { key: 'formsCount' as const, icon: 'description' as const, label: 'Formulaires', description: 'Structures et modèles créés' },
@@ -44,23 +26,14 @@ export function StorageScreen() {
   }, [fetchUsage]);
 
   const exportBackup = async () => {
-    const backup = {
-      format: 'TakarDa local backup',
-      schemaVersion: 1,
-      exportedAt: new Date().toISOString(),
-      data: {
-        users, groups, memberships, tontineCycles, contributions, forms, submissions,
-        activityEvents, notifications, tools, entityDefinitions, records, toolMembers,
-        externalContacts, roleDefinitions, events, documents, workflowRules,
-      },
-    };
     try {
+      // Sauvegarde complète de l'espace actif (tours de tontine compris), avec espace d'origine et empreinte d'intégrité.
       await Share.share({
         title: 'Sauvegarde TakarDa',
-        message: JSON.stringify(backup),
+        message: serializeBackup(createBackup()),
       });
-    } catch {
-      Alert.alert('Export impossible', 'La sauvegarde n’a pas pu être partagée. Réessayez.');
+    } catch (error) {
+      Alert.alert('Export impossible', error instanceof ModuleLockedError ? error.message : 'La sauvegarde n’a pas pu être partagée. Réessayez.');
     }
   };
 
@@ -76,7 +49,7 @@ export function StorageScreen() {
           </View>
           <HeadlineText>Stockage local</HeadlineText>
           <BodyMdText className="text-center">
-            FormEase V1 conserve vos données sur cet appareil. Un vrai espace cloud avec quota arrivera dans une prochaine
+            TakarDa V1 conserve vos données sur cet appareil. Un vrai espace cloud avec quota arrivera dans une prochaine
             version.
           </BodyMdText>
         </Card>
